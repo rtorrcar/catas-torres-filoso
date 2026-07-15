@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Catas Torres Filoso</title>
+<meta name="theme-color" content="#a68572">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Catas TF">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#f6f6f6;
+    --texto:#3c3c3b;
+    --acento:#a68572;
+    --acento-suave:#d9c8ba;
+    --verde:#5d8070;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size:18px;
+    overscroll-behavior-y: contain;
+  }
+  h1,h2,h3{ font-family: Georgia, 'Playfair Display', serif; font-weight:400; margin:0; }
+  #app{ max-width:600px; margin:0 auto; padding:16px 16px 90px 16px; min-height:100vh; }
+  .top-title{ text-align:center; margin:18px 0 24px 0; }
+  .top-title h1{ font-size:26px; letter-spacing:1px; text-transform:uppercase; }
+  .top-title .sub{ color:var(--acento); font-style:italic; font-size:14px; margin-top:4px; }
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; min-height:64px; border-radius:16px; border:none;
+    font-size:20px; font-weight:600; cursor:pointer; margin-bottom:14px;
+    background:var(--acento); color:#fff; padding:10px 14px; text-align:center;
+  }
+  .btn:active{ opacity:0.8; }
+  .btn.secundario{ background:#fff; color:var(--texto); border:2px solid var(--acento); }
+  .btn.verde{ background:var(--verde); }
+  .btn.pequeno{ min-height:46px; font-size:16px; }
+  .btn.gris{ background:#e2ded9; color:var(--texto); }
+  .btn-fila{ display:flex; gap:10px; }
+  .btn-fila .btn{ flex:1; }
+  .card{ background:#fff; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow: 0 1px 4px rgba(60,60,59,0.08); }
+  .campo{ margin-bottom:18px; }
+  .campo label{ display:block; font-weight:600; margin-bottom:6px; font-size:16px; }
+  .campo input[type=text], .campo input[type=email], .campo input[type=number], .campo textarea{
+    width:100%; padding:14px; border-radius:10px; border:2px solid #ddd6cf; font-size:18px; background:#fff; color:var(--texto); font-family:inherit;
+  }
+  .campo textarea{ resize:vertical; min-height:70px; }
+  .stepper{ display:flex; align-items:center; justify-content:space-between; background:#fbfaf8; border-radius:12px; padding:10px 14px; margin-bottom:8px; }
+  .stepper .nombre-prod{ flex:1; font-size:17px; }
+  .stepper .precio-prod{ font-size:13px; color:var(--acento); display:block; }
+  .stepper .controles{ display:flex; align-items:center; gap:10px; }
+  .stepper button{ width:42px; height:42px; border-radius:50%; border:2px solid var(--acento); background:#fff; color:var(--acento); font-size:22px; font-weight:700; }
+  .stepper .cantidad{ min-width:28px; text-align:center; font-size:20px; font-weight:700; }
+  .seccion-titulo{ font-size:15px; text-transform:uppercase; letter-spacing:1px; color:var(--acento); margin:18px 0 8px 0; font-weight:700; }
+  .toggle-grupo{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .toggle-grupo button{ flex:1; min-width:100px; padding:12px 8px; border-radius:12px; border:2px solid var(--acento); background:#fff; color:var(--texto); font-size:15px; font-weight:600; }
+  .toggle-grupo button.activo{ background:var(--acento); color:#fff; }
+  .queso-precio{ display:flex; align-items:center; gap:6px; margin-top:4px; }
+  .queso-precio input{ width:80px; padding:8px; border-radius:8px; border:2px solid #ddd6cf; font-size:16px; }
+  .ticket-linea{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #ddd6cf; font-size:16px; }
+  .ticket-linea.total{ font-size:26px; font-weight:800; border:none; padding-top:14px; }
+  .ticket-linea .desc{ color:var(--acento); font-size:13px; display:block; }
+  .aviso{ font-size:13px; color:var(--acento); margin-top:4px; }
+  .confirmacion{ text-align:center; padding:40px 10px; }
+  .confirmacion .check{ font-size:60px; color:var(--verde); }
+  .confirmacion .msg{ font-size:22px; font-weight:700; color:var(--verde); margin:12px 0; }
+  .top-bar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .top-bar .icono-btn{ background:none; border:none; font-size:24px; color:var(--acento); padding:8px; }
+  .historial-dia{ margin-bottom:22px; }
+  .historial-dia h3{ font-size:16px; color:var(--acento); border-bottom:1px solid var(--acento-suave); padding-bottom:6px; margin-bottom:8px; }
+  .venta-item{ background:#fff; border-radius:12px; padding:12px; margin-bottom:8px; }
+  .venta-item .fila1{ display:flex; justify-content:space-between; font-weight:700; font-size:17px; }
+  .venta-item .fila2{ font-size:13px; color:#7a7a79; margin-top:2px; }
+  .venta-item .borrar{ background:none; border:none; color:#b33; font-size:14px; margin-top:6px; }
+  .totales-dia{ display:flex; gap:10px; margin-bottom:14px; }
+  .totales-dia .caja{ flex:1; background:#fff; border-radius:12px; padding:10px; text-align:center; }
+  .totales-dia .caja .valor{ font-size:20px; font-weight:800; }
+  .totales-dia .caja .etiqueta{ font-size:12px; color:var(--acento); }
+  .overlay{ position:fixed; inset:0; background:rgba(246,246,246,0.94); display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:50; text-align:center; padding:20px; }
+  .overlay .spinner{ width:52px; height:52px; border:6px solid var(--acento-suave); border-top-color:var(--acento); border-radius:50%; animation:girar 0.9s linear infinite; margin-bottom:18px; }
+  @keyframes girar{ to{ transform:rotate(360deg); } }
+  .badge-pendiente{ background:#f0c14b; color:#3c3c3b; font-size:12px; padding:2px 8px; border-radius:8px; margin-left:8px; }
+  .gear{ position:fixed; bottom:14px; right:14px; background:#fff; border:2px solid var(--acento); border-radius:50%; width:48px; height:48px; font-size:20px; color:var(--acento); box-shadow:0 1px 6px rgba(0,0,0,0.15); z-index:10; }
+  input[type=file]{ display:none; }
+  .discreto{ font-size:13px; color:#999; text-align:center; margin-top:10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<button class="gear" data-action="abrir-ajustes" title="Ajustes">&#9881;</button>
+<input type="file" id="input-foto" accept="image/*" capture="environment">
+<script>
+/* ==================== DATOS ==================== */
+const PRODUCTOS_VINO = [
+  {id:'ab',  nombre:'Árboles Blanco',   tipo:'blanco', pvp:10.90, cata:10.00, grupoCaja:'ABAT'},
+  {id:'burbu', nombre:'Burbu',          tipo:'blanco', pvp:18.90, cata:18.00, grupoCaja:'BURJJT'},
+  {id:'apb', nombre:'Ad Pater Blanco',  tipo:'blanco', pvp:20.90, cata:20.00, grupoCaja:'APB'},
+  {id:'at',  nombre:'Árboles Tinto',    tipo:'tinto',  pvp:10.90, cata:10.00, grupoCaja:'ABAT'},
+  {id:'jjr', nombre:'Juan José Roble',  tipo:'tinto',  pvp:14.90, cata:14.00, grupoCaja:'JJR'},
+  {id:'jjt', nombre:'Juan José Tinaja', tipo:'tinto',  pvp:18.90, cata:18.00, grupoCaja:'BURJJT'},
+  {id:'apt', nombre:'Ad Pater Tinto',   tipo:'tinto',  pvp:24.00, cata:22.00, grupoCaja:'APT'},
+];
+const GRUPOS_CAJA = {
+  ABAT:   {caja4:39,  caja6:58,  nombre:'Árboles Blanco / Árboles Tinto'},
+  BURJJT: {caja4:71,  caja6:105, nombre:'Burbu / Juan José Tinaja'},
+  APB:    {caja4:79,  caja6:118, nombre:'Ad Pater Blanco'},
+  JJR:    {caja4:55,  caja6:82,  nombre:'Juan José Roble'},
+  APT:    {caja4:87,  caja6:130, nombre:'Ad Pater Tinto'},
+};
+const OTROS = [
+  {id:'jabon',  nombre:'Jabón',            pvp:8.90,  cata:8.90},
+  {id:'jabon2', nombre:'Jabón pack de 2',  pvp:17.50, cata:17.50},
+];
+const QUESOS = [
+  {id:'q_semi',   nombre:'Queso semicurado', precioDefecto:7.50},
+  {id:'q_romero', nombre:'Queso al romero',  precioDefecto:7.50},
+];
+const TODOS_PRODUCTOS = PRODUCTOS_VINO.concat(OTROS);
+
+/* ==================== ESTADO ==================== */
+function estadoVacio(){
+  const cantidades = {};
+  TODOS_PRODUCTOS.forEach(p=>cantidades[p.id]=0);
+  QUESOS.forEach(q=>cantidades[q.id]=0);
+  const quesoPrecios = {};
+  QUESOS.forEach(q=>quesoPrecios[q.id]=q.precioDefecto);
+  return {
+    nombre:'',
+    cantidades,
+    quesoPrecios,
+    numCatas:0,
+    precioCata:22.00,
+    estadoCata:'sinpagar',
+    modoDescuento:'cata',
+    extraTipo:'%',
+    extraValor:0,
+    envio:false,
+    notas:'',
+    direccion:''
+  };
+}
+let estado = estadoVacio();
+let pantallaActual = 'inicio';
+
+/* ==================== UTILIDADES ==================== */
+function euros(n){ return n.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €'; }
+function clamp0(n){ return n<0?0:n; }
+function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function comboMasBarato(n, precioUnidad, precio4, precio6){
+  let mejor = {coste: n*precioUnidad, c6:0, c4:0, sueltas:n};
+  const maxC6 = Math.floor(n/6);
+  for(let c6=0; c6<=maxC6; c6++){
+    const resto1 = n - c6*6;
+    const maxC4 = Math.floor(resto1/4);
+    for(let c4=0; c4<=maxC4; c4++){
+      const sueltas = resto1 - c4*4;
+      const coste = c6*precio6 + c4*precio4 + sueltas*precioUnidad;
+      if(coste < mejor.coste - 0.001){
+        mejor = {coste, c6, c4, sueltas};
+      }
+    }
+  }
+  return mejor;
+}
+
+function descripcionCombo(combo){
+  const partes = [];
+  if(combo.c6>0) partes.push(combo.c6+' caja'+(combo.c6>1?'s':'')+' de 6');
+  if(combo.c4>0) partes.push(combo.c4+' caja'+(combo.c4>1?'s':'')+' de 4');
+  if(combo.sueltas>0) partes.push(combo.sueltas+' suelta'+(combo.sueltas>1?'s':''));
+  return partes.length ? partes.join(' + ') : 'sin unidades';
+}
+
+/* ==================== CALCULO DE TOTALES ==================== */
+function calcularTotales(){
+  const modo = estado.modoDescuento; // 'cata' | 'sindescuento' | 'extra'
+  const usaCajaYCata = (modo==='cata' || modo==='extra');
+  const lineasVino = [];
+  let subtotalVinos = 0;
+
+  if(usaCajaYCata){
+    Object.keys(GRUPOS_CAJA).forEach(grupoKey=>{
+      const productosGrupo = PRODUCTOS_VINO.filter(p=>p.grupoCaja===grupoKey);
+      const n = productosGrupo.reduce((s,p)=>s+ (estado.cantidades[p.id]||0), 0);
+      if(n>0){
+        const precioUnidad = productosGrupo[0].cata;
+        const g = GRUPOS_CAJA[grupoKey];
+        const combo = comboMasBarato(n, precioUnidad, g.caja4, g.caja6);
+        subtotalVinos += combo.coste;
+        lineasVino.push({
+          nombre: g.nombre,
+          cantidad: n,
+          coste: combo.coste,
+          desc: descripcionCombo(combo)
+        });
+      }
+    });
+  } else {
+    PRODUCTOS_VINO.forEach(p=>{
+      const n = estado.cantidades[p.id]||0;
+      if(n>0){
+        const coste = n*p.pvp;
+        subtotalVinos += coste;
+        lineasVino.push({ nombre:p.nombre, cantidad:n, coste, desc:'PVP botella suelta' });
+      }
+    });
+  }
+
+  const lineasOtros = [];
+  let subtotalOtros = 0;
+  OTROS.forEach(p=>{
+    const n = estado.cantidades[p.id]||0;
+    if(n>0){
+      const precio = (modo==='sindescuento') ? p.pvp : p.cata;
+      const coste = n*precio;
+      subtotalOtros += coste;
+      lineasOtros.push({ nombre:p.nombre, cantidad:n, coste });
+    }
+  });
+
+  const lineasQueso = [];
+  let subtotalQueso = 0;
+  QUESOS.forEach(q=>{
+    const n = estado.cantidades[q.id]||0;
+    if(n>0){
+      const precioUnidad = estado.quesoPrecios[q.id] || q.precioDefecto;
+      const coste = n*precioUnidad;
+      subtotalQueso += coste;
+      lineasQueso.push({ nombre:q.nombre, cantidad:n, coste, precioUnidad });
+    }
+  });
+
+  const subtotalProductos = subtotalVinos + subtotalOtros + subtotalQueso;
+
+  let factorCata = 1;
+  if(estado.estadoCata==='mediapagada') factorCata = 0.5;
+  if(estado.estadoCata==='yapagada') factorCata = 0;
+  const subtotalCatas = estado.numCatas * estado.precioCata * factorCata;
+
+  let descuentoExtra = 0;
+  if(modo==='extra'){
+    const base = subtotalProductos + subtotalCatas;
+    descuentoExtra = estado.extraTipo==='%' ? base*(estado.extraValor/100) : estado.extraValor;
+    descuentoExtra = clamp0(Math.min(descuentoExtra, base));
+  }
+
+  const totalAntesEnvio = subtotalProductos + subtotalCatas - descuentoExtra;
+
+  let envioCoste = 0, envioGratis = false;
+  if(estado.envio){
+    if(subtotalProductos >= 79){ envioGratis = true; envioCoste = 0; }
+    else { envioCoste = 10; }
+  }
+
+  const total = totalAntesEnvio + envioCoste;
+
+  return {
+    lineasVino, lineasOtros, lineasQueso,
+    subtotalVinos, subtotalOtros, subtotalQueso, subtotalProductos,
+    subtotalCatas, descuentoExtra, envioCoste, envioGratis, total
+  };
+}
+
+/* ==================== NAVEGACION / RENDER ==================== */
+const app = document.getElementById('app');
+
+function ir(pantalla){ pantallaActual = pantalla; render(); window.scrollTo(0,0); }
+
+function render(){
+  if(pantallaActual==='inicio') return renderInicio();
+  if(pantallaActual==='revision') return renderRevision();
+  if(pantallaActual==='cobro') return renderCobro();
+  if(pantallaActual==='confirmacion') return renderConfirmacion();
+  if(pantallaActual==='historial') return renderHistorial();
+  if(pantallaActual==='ajustes') return renderAjustes();
+}
+
+function renderInicio(){
+  app.innerHTML = `
+    <div class="top-title">
+      <h1>Torres Filoso</h1>
+      <div class="sub">Cobro de catas</div>
+    </div>
+    <button class="btn" data-action="foto-pedido">&#128247; Foto del pedido</button>
+    <button class="btn secundario" data-action="pedido-mano">&#9998; Pedido a mano</button>
+    <button class="btn gris" data-action="ir-historial">&#128203; Ver ventas de hoy e historial</button>
+    <div class="discreto">Configura la clave de API y Supabase en el icono de ajustes (abajo a la derecha)</div>
+  `;
+}
+
+function renderRevision(){
+  const filasVino = PRODUCTOS_VINO.map(p=>{
+    const precioMostrado = estado.modoDescuento==='sindescuento' ? p.pvp : p.cata;
+    const etiquetaPrecio = estado.modoDescuento==='sindescuento' ? 'PVP' : 'cata';
+    return `
+    <div class="stepper">
+      <div class="nombre-prod">${p.nombre}<span class="precio-prod">${p.tipo==='blanco'?'Blanco':'Tinto'} · ${etiquetaPrecio} ${euros(precioMostrado)}</span></div>
+      <div class="controles">
+        <button data-action="qty-dec" data-id="${p.id}">−</button>
+        <div class="cantidad" id="cant-${p.id}">${estado.cantidades[p.id]}</div>
+        <button data-action="qty-inc" data-id="${p.id}">+</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  const filasOtros = OTROS.map(p=>{
+    const precioMostrado = estado.modoDescuento==='sindescuento' ? p.pvp : p.cata;
+    return `
+    <div class="stepper">
+      <div class="nombre-prod">${p.nombre}<span class="precio-prod">${euros(precioMostrado)}</span></div>
+      <div class="controles">
+        <button data-action="qty-dec" data-id="${p.id}">−</button>
+        <div class="cantidad" id="cant-${p.id}">${estado.cantidades[p.id]}</div>
+        <button data-action="qty-inc" data-id="${p.id}">+</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  const filasQueso = QUESOS.map(q=>`
+    <div class="stepper" style="flex-direction:column; align-items:stretch;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="nombre-prod">${q.nombre}</div>
+        <div class="controles">
+          <button data-action="qty-dec" data-id="${q.id}">−</button>
+          <div class="cantidad" id="cant-${q.id}">${estado.cantidades[q.id]}</div>
+          <button data-action="qty-inc" data-id="${q.id}">+</button>
+        </div>
+      </div>
+      ${estado.cantidades[q.id]>0 ? `
+      <div class="queso-precio">
+        <span>Precio por unidad:</span>
+        <input type="number" step="0.10" value="${estado.quesoPrecios[q.id]}" data-action="queso-precio" data-id="${q.id}">
+        <span>€</span>
+      </div>` : ''}
+    </div>
+  `).join('');
+
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="ir-inicio">&#8592;</button>
+      <h2 style="font-size:20px;">Revisar pedido</h2>
+      <span></span>
+    </div>
+
+    <div class="card">
+      <div class="campo" style="margin-bottom:0;">
+        <label>Nombre</label>
+        <input type="text" id="input-nombre" value="${estado.nombre.replace(/"/g,'&quot;')}" placeholder="Nombre del cliente">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-titulo">Vinos</div>
+      ${filasVino}
+      <div class="seccion-titulo">Otros</div>
+      ${filasOtros}
+      ${filasQueso}
+    </div>
+
+    <div class="card">
+      <div class="seccion-titulo">Catas</div>
+      <div class="stepper">
+        <div class="nombre-prod">Nº de catas</div>
+        <div class="controles">
+          <button data-action="catas-dec">−</button>
+          <div class="cantidad" id="cant-catas">${estado.numCatas}</div>
+          <button data-action="catas-inc">+</button>
+        </div>
+      </div>
+      <div class="campo" style="margin-top:10px;">
+        <label>Precio por cata</label>
+        <input type="number" step="0.50" id="input-precio-cata" value="${estado.precioCata}">
+      </div>
+      <div class="toggle-grupo">
+        <button class="${estado.estadoCata==='sinpagar'?'activo':''}" data-action="estado-cata" data-valor="sinpagar">Sin pagar</button>
+        <button class="${estado.estadoCata==='mediapagada'?'activo':''}" data-action="estado-cata" data-valor="mediapagada">Media pagada</button>
+        <button class="${estado.estadoCata==='yapagada'?'activo':''}" data-action="estado-cata" data-valor="yapagada">Ya pagada</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-titulo">Descuento</div>
+      <div class="toggle-grupo">
+        <button class="${estado.modoDescuento==='cata'?'activo':''}" data-action="modo-descuento" data-valor="cata">Precio cata</button>
+        <button class="${estado.modoDescuento==='sindescuento'?'activo':''}" data-action="modo-descuento" data-valor="sindescuento">Sin descuento</button>
+        <button class="${estado.modoDescuento==='extra'?'activo':''}" data-action="modo-descuento" data-valor="extra">Descuento extra</button>
+      </div>
+      ${estado.modoDescuento==='extra' ? `
+      <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+        <input type="number" step="1" id="input-extra-valor" value="${estado.extraValor}" style="flex:1; padding:12px; border-radius:10px; border:2px solid #ddd6cf; font-size:18px;">
+        <div class="toggle-grupo" style="margin:0; flex:0 0 auto;">
+          <button class="${estado.extraTipo==='%'?'activo':''}" data-action="extra-tipo" data-valor="%">%</button>
+          <button class="${estado.extraTipo==='€'?'activo':''}" data-action="extra-tipo" data-valor="€">€</button>
+        </div>
+      </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="seccion-titulo">Envío a domicilio</div>
+      <button class="btn ${estado.envio?'':'secundario'}" data-action="toggle-envio">${estado.envio ? '✓ Envío activado' : 'Activar envío a casa'}</button>
+      <div class="aviso">Solo península. Gratis a partir de 79 € en productos.</div>
+      <div class="aviso">Fuera de península: consultar.</div>
+      ${estado.envio ? `
+      <div class="campo" style="margin-top:14px; margin-bottom:0;">
+        <label>Dirección de envío</label>
+        <textarea id="input-direccion" rows="3" placeholder="Calle, número, población, código postal, teléfono de contacto">${escapeHtml(estado.direccion)}</textarea>
+      </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="campo" style="margin-bottom:0;">
+        <label>Notas</label>
+        <input type="text" id="input-notas" value="${(estado.notas||'').replace(/"/g,'&quot;')}" placeholder="Envío a casa, regalo, lo que necesites">
+      </div>
+    </div>
+
+    <button class="btn verde" data-action="ir-cobro">Ir a cobrar &#8594;</button>
+  `;
+}
+
+function renderCobro(){
+  const t = calcularTotales();
+  const lineasHtml = [];
+  t.lineasVino.forEach(l=>{
+    lineasHtml.push(`<div class="ticket-linea"><span>${l.nombre} (${l.cantidad})<span class="desc">${l.desc}</span></span><span>${euros(l.coste)}</span></div>`);
+  });
+  t.lineasOtros.forEach(l=>{
+    lineasHtml.push(`<div class="ticket-linea"><span>${l.nombre} (${l.cantidad})</span><span>${euros(l.coste)}</span></div>`);
+  });
+  t.lineasQueso.forEach(l=>{
+    lineasHtml.push(`<div class="ticket-linea"><span>${l.nombre} (${l.cantidad} x ${euros(l.precioUnidad)})</span><span>${euros(l.coste)}</span></div>`);
+  });
+
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="ir-revision">&#8592;</button>
+      <h2 style="font-size:20px;">Cobro</h2>
+      <span></span>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">${estado.nombre || 'Sin nombre'}</h3>
+      ${lineasHtml.join('') || '<div class="ticket-linea"><span>Sin productos</span><span>0,00 €</span></div>'}
+      ${estado.numCatas>0 ? `<div class="ticket-linea"><span>Catas (${estado.numCatas})<span class="desc">${estado.estadoCata==='sinpagar'?'sin pagar':estado.estadoCata==='mediapagada'?'media pagada':'ya pagada'}</span></span><span>${euros(t.subtotalCatas)}</span></div>` : ''}
+      ${t.descuentoExtra>0 ? `<div class="ticket-linea"><span>Descuento extra</span><span>− ${euros(t.descuentoExtra)}</span></div>` : ''}
+      ${estado.envio ? `<div class="ticket-linea"><span>Envío a casa</span><span>${t.envioGratis ? 'Gratis' : euros(t.envioCoste)}</span></div>` : ''}
+      ${estado.envio && estado.direccion ? `<div class="ticket-linea" style="display:block;"><span style="font-weight:600;">Dirección de envío</span><div style="white-space:pre-wrap; margin-top:4px;">${escapeHtml(estado.direccion)}</div></div>` : ''}
+      ${estado.notas ? `<div class="ticket-linea" style="display:block;"><span style="font-weight:600;">Notas</span><div style="white-space:pre-wrap; margin-top:4px;">${escapeHtml(estado.notas)}</div></div>` : ''}
+      <div class="ticket-linea total"><span>TOTAL</span><span>${euros(t.total)}</span></div>
+    </div>
+
+    <div class="btn-fila">
+      <button class="btn" data-action="cobrar" data-forma="efectivo">EFECTIVO</button>
+      <button class="btn" data-action="cobrar" data-forma="tarjeta">TARJETA</button>
+    </div>
+  `;
+}
+
+let ultimaVentaConfirmada = null;
+function renderConfirmacion(){
+  const v = ultimaVentaConfirmada;
+  app.innerHTML = `
+    <div class="confirmacion">
+      <div class="check">&#10004;</div>
+      <div class="msg">Venta guardada</div>
+      <div style="font-size:20px;">${v.nombre || 'Sin nombre'} · ${euros(v.total)} · ${v.forma_pago==='efectivo'?'Efectivo':'Tarjeta'}</div>
+      ${v.pendiente ? '<div class="aviso">Guardada localmente. Se sincronizará cuando haya conexión.</div>' : ''}
+      ${v.direccion ? `<div class="card" style="text-align:left; margin-top:20px;"><strong>Dirección de envío guardada:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.direccion)}</div></div>` : ''}
+      ${v.notas ? `<div class="card" style="text-align:left;"><strong>Notas guardadas:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.notas)}</div></div>` : ''}
+      <button class="btn verde" style="margin-top:20px;" data-action="ir-inicio">Cobrar al siguiente</button>
+    </div>
+  `;
+}
+
+/* ==================== HISTORIAL ==================== */
+async function renderHistorial(){
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="ir-inicio">&#8592;</button>
+      <h2 style="font-size:20px;">Ventas</h2>
+      <span></span>
+    </div>
+    <div id="historial-contenido"><p style="text-align:center;">Cargando...</p></div>
+  `;
+  const ventas = await obtenerVentas();
+  pintarHistorial(ventas);
+}
+
+function pintarHistorial(ventas){
+  const cont = document.getElementById('historial-contenido');
+  if(!cont) return;
+  if(!ventas || ventas.length===0){
+    cont.innerHTML = '<p style="text-align:center; color:#999;">Todavía no hay ventas guardadas.</p>';
+    return;
+  }
+  const porDia = {};
+  ventas.forEach(v=>{
+    const dia = (v.fecha || (v.created_at||'').slice(0,10));
+    if(!porDia[dia]) porDia[dia] = [];
+    porDia[dia].push(v);
+  });
+  const dias = Object.keys(porDia).sort().reverse();
+  let html = '';
+  dias.forEach(dia=>{
+    const lista = porDia[dia];
+    const totalDia = lista.reduce((s,v)=>s+Number(v.total||0),0);
+    const efectivo = lista.filter(v=>v.forma_pago==='efectivo').reduce((s,v)=>s+Number(v.total||0),0);
+    const tarjeta = lista.filter(v=>v.forma_pago==='tarjeta').reduce((s,v)=>s+Number(v.total||0),0);
+    html += `<div class="historial-dia"><h3>${formatearFecha(dia)}</h3>`;
+    html += `<div class="totales-dia">
+      <div class="caja"><div class="valor">${euros(totalDia)}</div><div class="etiqueta">Total</div></div>
+      <div class="caja"><div class="valor">${euros(efectivo)}</div><div class="etiqueta">Efectivo</div></div>
+      <div class="caja"><div class="valor">${euros(tarjeta)}</div><div class="etiqueta">Tarjeta</div></div>
+      <div class="caja"><div class="valor">${lista.length}</div><div class="etiqueta">Ventas</div></div>
+    </div>`;
+    lista.forEach(v=>{
+      let resumen = '';
+      try{
+        const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
+        resumen = (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(', ');
+      }catch(e){ resumen=''; }
+      html += `<div class="venta-item">
+        <div class="fila1"><span>${v.nombre||'Sin nombre'}</span><span>${euros(Number(v.total||0))}</span></div>
+        <div class="fila2">${v.forma_pago==='efectivo'?'Efectivo':'Tarjeta'}${v.email? ' · '+v.email:''}${resumen? ' · '+resumen:''}</div>
+        ${v.direccion ? `<div class="fila2" style="white-space:pre-wrap;">&#128230; ${escapeHtml(v.direccion)}</div>` : ''}
+        ${v.notas ? `<div class="fila2" style="white-space:pre-wrap;">&#128221; ${escapeHtml(v.notas)}</div>` : ''}
+        <button class="borrar" data-action="borrar-venta" data-id="${v.id}">Borrar venta</button>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+function formatearFecha(iso){
+  try{
+    const d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
+  }catch(e){ return iso; }
+}
+
+/* ==================== AJUSTES ==================== */
+function renderAjustes(){
+  const apiKey = localStorage.getItem('cfg_api_key') || '';
+  const supaUrl = localStorage.getItem('cfg_supabase_url') || '';
+  const supaAnon = localStorage.getItem('cfg_supabase_anon') || '';
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="volver-ajustes">&#8592;</button>
+      <h2 style="font-size:20px;">Ajustes</h2>
+      <span></span>
+    </div>
+    <div class="card">
+      <div class="campo">
+        <label>Clave API de Anthropic</label>
+        <input type="text" id="cfg-api-key" value="${apiKey}" placeholder="sk-ant-...">
+      </div>
+      <div class="campo">
+        <label>URL de tu proyecto Supabase</label>
+        <input type="text" id="cfg-supa-url" value="${supaUrl}" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="campo" style="margin-bottom:0;">
+        <label>Anon key de Supabase</label>
+        <input type="text" id="cfg-supa-anon" value="${supaAnon}" placeholder="eyJhbGciOi...">
+      </div>
+    </div>
+    <button class="btn verde" data-action="guardar-ajustes">Guardar ajustes</button>
+    <div class="discreto">Estos datos se guardan solo en este móvil (localStorage), nunca se comparten.</div>
+  `;
+}
+let pantallaAnteriorAjustes = 'inicio';
+
+/* ==================== ACCIONES ==================== */
+const ACCIONES = {
+  'foto-pedido': ()=>{ document.getElementById('input-foto').click(); },
+  'pedido-mano': ()=>{ estado = estadoVacio(); ir('revision'); },
+  'ir-inicio': ()=>{ ir('inicio'); },
+  'ir-revision': ()=>{ ir('revision'); },
+  'ir-cobro': ()=>{ ir('cobro'); },
+  'ir-historial': ()=>{ ir('historial'); },
+  'abrir-ajustes': ()=>{ pantallaAnteriorAjustes = pantallaActual; ir('ajustes'); },
+  'volver-ajustes': ()=>{ ir(pantallaAnteriorAjustes); },
+  'guardar-ajustes': ()=>{
+    localStorage.setItem('cfg_api_key', document.getElementById('cfg-api-key').value.trim());
+    localStorage.setItem('cfg_supabase_url', document.getElementById('cfg-supa-url').value.trim().replace(/\/$/,''));
+    localStorage.setItem('cfg_supabase_anon', document.getElementById('cfg-supa-anon').value.trim());
+    alert('Ajustes guardados');
+    ir(pantallaAnteriorAjustes);
+  },
+  'qty-inc': (btn)=>{ const id=btn.dataset.id; estado.cantidades[id] = (estado.cantidades[id]||0)+1; render(); },
+  'qty-dec': (btn)=>{ const id=btn.dataset.id; estado.cantidades[id] = Math.max(0,(estado.cantidades[id]||0)-1); render(); },
+  'queso-precio': (input)=>{ /* handled on input event, ver abajo */ },
+  'catas-inc': ()=>{ estado.numCatas++; render(); },
+  'catas-dec': ()=>{ estado.numCatas = Math.max(0, estado.numCatas-1); render(); },
+  'estado-cata': (btn)=>{ estado.estadoCata = btn.dataset.valor; render(); },
+  'modo-descuento': (btn)=>{ estado.modoDescuento = btn.dataset.valor; render(); },
+  'extra-tipo': (btn)=>{ estado.extraTipo = btn.dataset.valor; render(); },
+  'toggle-envio': ()=>{ estado.envio = !estado.envio; render(); },
+  'cobrar': async (btn)=>{ await cobrarVenta(btn.dataset.forma); },
+  'borrar-venta': async (btn)=>{ await borrarVenta(btn.dataset.id); }
+};
+
+document.body.addEventListener('click', function(e){
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  const fn = ACCIONES[btn.dataset.action];
+  if(fn) fn(btn, e);
+});
+
+document.body.addEventListener('input', function(e){
+  const t = e.target;
+  if(t.id==='input-nombre') estado.nombre = t.value;
+  if(t.id==='input-notas') estado.notas = t.value;
+  if(t.id==='input-direccion') estado.direccion = t.value;
+  if(t.id==='input-precio-cata') estado.precioCata = parseFloat(t.value)||0;
+  if(t.id==='input-extra-valor') estado.extraValor = parseFloat(t.value)||0;
+  if(t.dataset && t.dataset.action==='queso-precio'){
+    estado.quesoPrecios[t.dataset.id] = parseFloat(t.value)||0;
+  }
+});
+
+/* ==================== FOTO + IA ==================== */
+document.getElementById('input-foto').addEventListener('change', async function(e){
+  const archivo = e.target.files[0];
+  if(!archivo) return;
+  const apiKey = localStorage.getItem('cfg_api_key');
+  if(!apiKey){
+    alert('Antes de usar la foto, configura tu clave de API de Anthropic en Ajustes.');
+    pantallaAnteriorAjustes = 'inicio';
+    ir('ajustes');
+    e.target.value = '';
+    return;
+  }
+  mostrarCargando('Leyendo la ficha con IA...');
+  try{
+    const {base64, mediaType} = await archivoABase64(archivo);
+    const datos = await leerFichaConIA(base64, mediaType, apiKey);
+    aplicarDatosIA(datos);
+    ocultarCargando();
+    ir('revision');
+  }catch(err){
+    ocultarCargando();
+    alert('No se pudo leer la foto automáticamente (' + err.message + '). Revisa el pedido a mano.');
+    estado = estadoVacio();
+    ir('revision');
+  }
+  e.target.value = '';
+});
+
+function archivoABase64(archivo){
+  return new Promise((resolve, reject)=>{
+    const lector = new FileReader();
+    lector.onload = ()=>{
+      const resultado = lector.result;
+      const base64 = resultado.split(',')[1];
+      resolve({base64, mediaType: archivo.type || 'image/jpeg'});
+    };
+    lector.onerror = reject;
+    lector.readAsDataURL(archivo);
+  });
+}
+
+async function leerFichaConIA(base64, mediaType, apiKey){
+  const prompt = 'Analiza esta foto de una ficha de pedido manuscrita de una bodega. '+
+    'Devuelve SOLO un JSON valido con exactamente este formato, sin texto adicional ni explicaciones:\n'+
+    '{"nombre":"","arboles_blanco":0,"burbu":0,"ad_pater_blanco":0,"arboles_tinto":0,"juan_jose_roble":0,"juan_jose_tinaja":0,"ad_pater_tinto":0,"jabon":0,"jabon_pack2":0,"queso_semicurado":0,"queso_romero":0,"num_catas":0,"notas":"","email":""}\n'+
+    'Usa 0 para cantidades no legibles o vacias, y "" para textos vacios. Los numeros pueden estar escritos a mano, interpreta con cuidado.';
+
+  const cuerpo = {
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: [
+        { type:'image', source:{ type:'base64', media_type: mediaType, data: base64 } },
+        { type:'text', text: prompt }
+      ]
+    }]
+  };
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify(cuerpo)
+  });
+
+  if(!res.ok){
+    const texto = await res.text();
+    throw new Error('API ' + res.status + ': ' + texto.slice(0,120));
+  }
+  const data = await res.json();
+  const textoRespuesta = (data.content && data.content[0] && data.content[0].text) || '';
+  const match = textoRespuesta.match(/\{[\s\S]*\}/);
+  if(!match) throw new Error('respuesta sin JSON');
+  return JSON.parse(match[0]);
+}
+
+function aplicarDatosIA(d){
+  estado = estadoVacio();
+  estado.nombre = d.nombre || '';
+  estado.cantidades.ab = Number(d.arboles_blanco)||0;
+  estado.cantidades.burbu = Number(d.burbu)||0;
+  estado.cantidades.apb = Number(d.ad_pater_blanco)||0;
+  estado.cantidades.at = Number(d.arboles_tinto)||0;
+  estado.cantidades.jjr = Number(d.juan_jose_roble)||0;
+  estado.cantidades.jjt = Number(d.juan_jose_tinaja)||0;
+  estado.cantidades.apt = Number(d.ad_pater_tinto)||0;
+  estado.cantidades.jabon = Number(d.jabon)||0;
+  estado.cantidades.jabon2 = Number(d.jabon_pack2)||0;
+  estado.cantidades.q_semi = Number(d.queso_semicurado)||0;
+  estado.cantidades.q_romero = Number(d.queso_romero)||0;
+  estado.numCatas = Number(d.num_catas)||0;
+  estado.notas = d.notas || '';
+  estado.email = d.email || '';
+}
+
+function mostrarCargando(msg){
+  ocultarCargando();
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.id = 'overlay-carga';
+  div.innerHTML = '<div class="spinner"></div><div>'+msg+'</div>';
+  document.body.appendChild(div);
+}
+function ocultarCargando(){
+  const el = document.getElementById('overlay-carga');
+  if(el) el.remove();
+}
+
+/* ==================== SUPABASE (REST directo con fetch) ==================== */
+function cfgSupabase(){
+  return {
+    url: localStorage.getItem('cfg_supabase_url') || '',
+    anon: localStorage.getItem('cfg_supabase_anon') || ''
+  };
+}
+function supaHeaders(anon, extra){
+  return Object.assign({
+    'apikey': anon,
+    'Authorization': 'Bearer ' + anon,
+    'Content-Type': 'application/json'
+  }, extra||{});
+}
+
+async function cobrarVenta(formaPago){
+  const t = calcularTotales();
+  const productos = []
+    .concat(t.lineasVino.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})))
+    .concat(t.lineasOtros.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})))
+    .concat(t.lineasQueso.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})));
+
+  const hoy = new Date();
+  const venta = {
+    fecha: hoy.toISOString().slice(0,10),
+    nombre: estado.nombre || '',
+    productos: JSON.stringify(productos),
+    num_catas: estado.numCatas,
+    estado_cata: estado.estadoCata,
+    descuento_aplicado: estado.modoDescuento,
+    envio: estado.envio,
+    subtotal: Number((t.subtotalProductos).toFixed(2)),
+    total: Number(t.total.toFixed(2)),
+    forma_pago: formaPago,
+    email: estado.email || '',
+    notas: estado.notas || '',
+    direccion: estado.direccion || ''
+  };
+
+  let pendiente = false;
+  try{
+    await guardarVentaRemota(venta);
+  }catch(err){
+    encolarPendiente(venta);
+    pendiente = true;
+  }
+  ultimaVentaConfirmada = Object.assign({}, venta, {pendiente});
+  estado = estadoVacio();
+  ir('confirmacion');
+}
+
+async function guardarVentaRemota(venta){
+  const {url, anon} = cfgSupabase();
+  if(!url || !anon) throw new Error('Supabase no configurado');
+  const res = await fetch(url + '/rest/v1/ventas_catas', {
+    method:'POST',
+    headers: supaHeaders(anon, {'Prefer':'return=representation'}),
+    body: JSON.stringify(venta)
+  });
+  if(!res.ok){ throw new Error('HTTP '+res.status); }
+  return res.json();
+}
+
+function encolarPendiente(venta){
+  const cola = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+  cola.push(venta);
+  localStorage.setItem('cola_pendientes', JSON.stringify(cola));
+}
+
+async function reintentarPendientes(){
+  const cola = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+  if(cola.length===0) return;
+  const restantes = [];
+  for(const venta of cola){
+    try{ await guardarVentaRemota(venta); }
+    catch(e){ restantes.push(venta); }
+  }
+  localStorage.setItem('cola_pendientes', JSON.stringify(restantes));
+  if(restantes.length < cola.length && pantallaActual==='historial'){
+    renderHistorial();
+  }
+}
+
+async function obtenerVentas(){
+  const {url, anon} = cfgSupabase();
+  if(!url || !anon){
+    return JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+  }
+  try{
+    const res = await fetch(url + '/rest/v1/ventas_catas?select=*&order=fecha.desc,id.desc', {
+      headers: supaHeaders(anon)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const remotas = await res.json();
+    const pendientes = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+    return pendientes.concat(remotas);
+  }catch(err){
+    const pendientes = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+    return pendientes;
+  }
+}
+
+async function borrarVenta(id){
+  if(!confirm('¿Seguro que quieres borrar esta venta?')) return;
+  const {url, anon} = cfgSupabase();
+  try{
+    const res = await fetch(url + '/rest/v1/ventas_catas?id=eq.' + id, {
+      method:'DELETE',
+      headers: supaHeaders(anon)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    renderHistorial();
+  }catch(err){
+    alert('No se pudo borrar (sin conexión o Supabase no configurado).');
+  }
+}
+
+window.addEventListener('online', reintentarPendientes);
+setInterval(reintentarPendientes, 30000);
+
+/* ==================== INICIO ==================== */
+render();
+reintentarPendientes();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>

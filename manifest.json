@@ -1,0 +1,15 @@
+{
+  "name": "Catas Torres Filoso",
+  "short_name": "Catas TF",
+  "description": "Cobro de pedidos en las catas de enoturismo de Torres Filoso",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f6f6",
+  "theme_color": "#a68572",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
