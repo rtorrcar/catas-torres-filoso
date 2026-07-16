@@ -506,6 +506,7 @@ function renderConfirmacion(){
 }
 
 /* ==================== HISTORIAL ==================== */
+let ultimasVentasCargadas = [];
 async function renderHistorial(){
   app.innerHTML = `
     <div class="top-bar">
@@ -513,10 +514,55 @@ async function renderHistorial(){
       <h2 style="font-size:20px;">Ventas</h2>
       <span></span>
     </div>
+    <button class="btn secundario pequeno" data-action="exportar-csv">&#128190; Exportar CSV</button>
     <div id="historial-contenido"><p style="text-align:center;">Cargando...</p></div>
   `;
   const ventas = await obtenerVentas();
+  ultimasVentasCargadas = ventas || [];
   pintarHistorial(ventas);
+}
+
+function csvEscape(valor){
+  const s = (valor===undefined || valor===null) ? '' : String(valor);
+  if(/[",;\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function generarCSV(ventas){
+  const cabeceras = ['fecha','nombre','forma_pago','total','subtotal','num_catas','estado_cata','descuento_aplicado','envio','direccion','notas','email','productos','created_at'];
+  const filas = [cabeceras.join(';')];
+  (ventas||[]).forEach(v=>{
+    let productosTexto = '';
+    try{
+      const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
+      productosTexto = (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(' | ');
+    }catch(e){ productosTexto = ''; }
+    const fila = [
+      v.fecha||'', v.nombre||'', v.forma_pago||'', v.total||0, v.subtotal||0,
+      v.num_catas||0, v.estado_cata||'', v.descuento_aplicado||'', v.envio?'si':'no',
+      v.direccion||'', v.notas||'', v.email||'', productosTexto, v.created_at||''
+    ].map(csvEscape);
+    filas.push(fila.join(';'));
+  });
+  return filas.join('\n');
+}
+
+function exportarVentasCSV(){
+  if(!ultimasVentasCargadas || ultimasVentasCargadas.length===0){
+    alert('No hay ventas para exportar todavia.');
+    return;
+  }
+  const csv = '\uFEFF' + generarCSV(ultimasVentasCargadas);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const hoy = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = 'ventas_torres_filoso_' + hoy + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function pintarHistorial(ventas){
@@ -648,7 +694,8 @@ const ACCIONES = {
   'toggle-envio': ()=>{ estado.envio = !estado.envio; render(); },
   'cobrar': async (btn)=>{ await cobrarVenta(btn.dataset.forma); },
   'borrar-venta': async (btn)=>{ await borrarVenta(btn.dataset.id); },
-  'marcar-cobrada': async (btn)=>{ await marcarCobrada(btn.dataset.id, btn.dataset.forma); }
+  'marcar-cobrada': async (btn)=>{ await marcarCobrada(btn.dataset.id, btn.dataset.forma); },
+  'exportar-csv': ()=>{ exportarVentasCSV(); }
 };
 
 document.body.addEventListener('click', function(e){
