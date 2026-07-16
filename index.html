@@ -17,6 +17,8 @@
     --acento:#a68572;
     --acento-suave:#d9c8ba;
     --verde:#5d8070;
+    --pendiente:#b9822f;
+    --pendiente-bg:#faf1e2;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   html,body{
@@ -69,18 +71,31 @@
   .confirmacion{ text-align:center; padding:40px 10px; }
   .confirmacion .check{ font-size:60px; color:var(--verde); }
   .confirmacion .msg{ font-size:22px; font-weight:700; color:var(--verde); margin:12px 0; }
+  .confirmacion.pendiente .check{ color:var(--pendiente); }
+  .confirmacion.pendiente .msg{ color:var(--pendiente); }
+  .btn.pendiente-btn{ background:#fff; color:var(--pendiente); border:2px solid var(--pendiente); }
   .top-bar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .top-bar .icono-btn{ background:none; border:none; font-size:24px; color:var(--acento); padding:8px; }
   .historial-dia{ margin-bottom:22px; }
   .historial-dia h3{ font-size:16px; color:var(--acento); border-bottom:1px solid var(--acento-suave); padding-bottom:6px; margin-bottom:8px; }
-  .venta-item{ background:#fff; border-radius:12px; padding:12px; margin-bottom:8px; }
-  .venta-item .fila1{ display:flex; justify-content:space-between; font-weight:700; font-size:17px; }
+  .venta-item{ background:#fff; border-radius:12px; padding:12px; margin-bottom:8px; border-left:5px solid transparent; }
+  .venta-item.es-pendiente{ border-left:5px solid var(--pendiente); background:var(--pendiente-bg); }
+  .venta-item .fila1{ display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:17px; gap:8px; }
   .venta-item .fila2{ font-size:13px; color:#7a7a79; margin-top:2px; }
   .venta-item .borrar{ background:none; border:none; color:#b33; font-size:14px; margin-top:6px; }
-  .totales-dia{ display:flex; gap:10px; margin-bottom:14px; }
-  .totales-dia .caja{ flex:1; background:#fff; border-radius:12px; padding:10px; text-align:center; }
-  .totales-dia .caja .valor{ font-size:20px; font-weight:800; }
-  .totales-dia .caja .etiqueta{ font-size:12px; color:var(--acento); }
+  .badge-pendiente{ display:inline-block; background:var(--pendiente); color:#fff; font-size:11.5px; font-weight:700; letter-spacing:0.3px; padding:3px 9px; border-radius:20px; white-space:nowrap; text-transform:uppercase; }
+  .cobrar-ahora{ display:flex; gap:8px; margin-top:8px; }
+  .cobrar-ahora button{ flex:1; padding:8px; border-radius:8px; border:2px solid var(--pendiente); background:#fff; color:var(--pendiente); font-weight:700; font-size:13px; }
+  .dia-bloque{ margin-bottom:26px; }
+  .dia-bloque .cabecera-dia{ display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--acento-suave); padding-bottom:6px; margin-bottom:8px; }
+  .dia-bloque .cabecera-dia h3{ font-size:16px; color:var(--acento); margin:0; text-transform:capitalize; }
+  .tag-hoy{ background:var(--verde); color:#fff; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
+  .totales-dia{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .totales-dia .caja{ flex:1; min-width:70px; background:#fff; border-radius:12px; padding:10px 6px; text-align:center; }
+  .totales-dia .caja.caja-pendiente{ background:var(--pendiente-bg); }
+  .totales-dia .caja .valor{ font-size:18px; font-weight:800; }
+  .totales-dia .caja.caja-pendiente .valor{ color:var(--pendiente); }
+  .totales-dia .caja .etiqueta{ font-size:11px; color:var(--acento); }
   .overlay{ position:fixed; inset:0; background:rgba(246,246,246,0.94); display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:50; text-align:center; padding:20px; }
   .overlay .spinner{ width:52px; height:52px; border:6px solid var(--acento-suave); border-top-color:var(--acento); border-radius:50%; animation:girar 0.9s linear infinite; margin-bottom:18px; }
   @keyframes girar{ to{ transform:rotate(360deg); } }
@@ -461,21 +476,31 @@ function renderCobro(){
       <button class="btn" data-action="cobrar" data-forma="efectivo">EFECTIVO</button>
       <button class="btn" data-action="cobrar" data-forma="tarjeta">TARJETA</button>
     </div>
+
+    <button class="btn pendiente-btn" data-action="cobrar" data-forma="pendiente">&#128221; Guardar pedido (aún no ha pagado)</button>
+    <div class="aviso" style="text-align:center; margin-bottom:14px;">Úsalo para tomar nota del pedido durante la cata. Luego, desde el historial, podrás marcarlo como cobrado.</div>
   `;
 }
 
 let ultimaVentaConfirmada = null;
+function textoFormaPago(forma){
+  if(forma==='efectivo') return 'Efectivo';
+  if(forma==='tarjeta') return 'Tarjeta';
+  return 'Pendiente de pago';
+}
 function renderConfirmacion(){
   const v = ultimaVentaConfirmada;
+  const esPendiente = v.forma_pago === 'pendiente';
   app.innerHTML = `
-    <div class="confirmacion">
-      <div class="check">&#10004;</div>
-      <div class="msg">Venta guardada</div>
-      <div style="font-size:20px;">${v.nombre || 'Sin nombre'} · ${euros(v.total)} · ${v.forma_pago==='efectivo'?'Efectivo':'Tarjeta'}</div>
-      ${v.pendiente ? '<div class="aviso">Guardada localmente. Se sincronizará cuando haya conexión.</div>' : ''}
+    <div class="confirmacion ${esPendiente ? 'pendiente' : ''}">
+      <div class="check">${esPendiente ? '&#128221;' : '&#10004;'}</div>
+      <div class="msg">${esPendiente ? 'Pedido guardado' : 'Venta guardada'}</div>
+      <div style="font-size:20px;">${v.nombre || 'Sin nombre'} · ${euros(v.total)} · ${textoFormaPago(v.forma_pago)}</div>
+      ${esPendiente ? '<div class="aviso">Recuerda cobrarlo luego desde el historial de ventas.</div>' : ''}
+      ${v.sinSincronizar ? '<div class="aviso">Guardado localmente. Se sincronizará cuando haya conexión.</div>' : ''}
       ${v.direccion ? `<div class="card" style="text-align:left; margin-top:20px;"><strong>Dirección de envío guardada:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.direccion)}</div></div>` : ''}
       ${v.notas ? `<div class="card" style="text-align:left;"><strong>Notas guardadas:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.notas)}</div></div>` : ''}
-      <button class="btn verde" style="margin-top:20px;" data-action="ir-inicio">Cobrar al siguiente</button>
+      <button class="btn verde" style="margin-top:20px;" data-action="ir-inicio">${esPendiente ? 'Tomar el siguiente pedido' : 'Cobrar al siguiente'}</button>
     </div>
   `;
 }
@@ -501,6 +526,7 @@ function pintarHistorial(ventas){
     cont.innerHTML = '<p style="text-align:center; color:#999;">Todavía no hay ventas guardadas.</p>';
     return;
   }
+  const hoyIso = new Date().toISOString().slice(0,10);
   const porDia = {};
   ventas.forEach(v=>{
     const dia = (v.fecha || (v.created_at||'').slice(0,10));
@@ -511,14 +537,22 @@ function pintarHistorial(ventas){
   let html = '';
   dias.forEach(dia=>{
     const lista = porDia[dia];
-    const totalDia = lista.reduce((s,v)=>s+Number(v.total||0),0);
+    const pagadas = lista.filter(v=>v.forma_pago!=='pendiente');
+    const pendientes = lista.filter(v=>v.forma_pago==='pendiente');
+    const totalDia = pagadas.reduce((s,v)=>s+Number(v.total||0),0);
     const efectivo = lista.filter(v=>v.forma_pago==='efectivo').reduce((s,v)=>s+Number(v.total||0),0);
     const tarjeta = lista.filter(v=>v.forma_pago==='tarjeta').reduce((s,v)=>s+Number(v.total||0),0);
-    html += `<div class="historial-dia"><h3>${formatearFecha(dia)}</h3>`;
+    const pendienteTotal = pendientes.reduce((s,v)=>s+Number(v.total||0),0);
+    html += `<div class="dia-bloque">
+      <div class="cabecera-dia">
+        <h3>${formatearFecha(dia)}</h3>
+        ${dia===hoyIso ? '<span class="tag-hoy">Hoy</span>' : ''}
+      </div>`;
     html += `<div class="totales-dia">
-      <div class="caja"><div class="valor">${euros(totalDia)}</div><div class="etiqueta">Total</div></div>
+      <div class="caja"><div class="valor">${euros(totalDia)}</div><div class="etiqueta">Cobrado</div></div>
       <div class="caja"><div class="valor">${euros(efectivo)}</div><div class="etiqueta">Efectivo</div></div>
       <div class="caja"><div class="valor">${euros(tarjeta)}</div><div class="etiqueta">Tarjeta</div></div>
+      ${pendientes.length>0 ? `<div class="caja caja-pendiente"><div class="valor">${euros(pendienteTotal)}</div><div class="etiqueta">Pendiente</div></div>` : ''}
       <div class="caja"><div class="valor">${lista.length}</div><div class="etiqueta">Ventas</div></div>
     </div>`;
     lista.forEach(v=>{
@@ -527,11 +561,19 @@ function pintarHistorial(ventas){
         const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
         resumen = (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(', ');
       }catch(e){ resumen=''; }
-      html += `<div class="venta-item">
-        <div class="fila1"><span>${v.nombre||'Sin nombre'}</span><span>${euros(Number(v.total||0))}</span></div>
-        <div class="fila2">${v.forma_pago==='efectivo'?'Efectivo':'Tarjeta'}${v.email? ' · '+v.email:''}${resumen? ' · '+resumen:''}</div>
+      const esPendiente = v.forma_pago==='pendiente';
+      html += `<div class="venta-item ${esPendiente ? 'es-pendiente' : ''}">
+        <div class="fila1">
+          <span>${v.nombre||'Sin nombre'}</span>
+          <span style="display:flex; align-items:center; gap:8px;">${esPendiente ? '<span class="badge-pendiente">Pendiente de pago</span>' : ''}${euros(Number(v.total||0))}</span>
+        </div>
+        <div class="fila2">${textoFormaPago(v.forma_pago)}${v.email? ' · '+v.email:''}${resumen? ' · '+resumen:''}</div>
         ${v.direccion ? `<div class="fila2" style="white-space:pre-wrap;">&#128230; ${escapeHtml(v.direccion)}</div>` : ''}
         ${v.notas ? `<div class="fila2" style="white-space:pre-wrap;">&#128221; ${escapeHtml(v.notas)}</div>` : ''}
+        ${esPendiente ? `<div class="cobrar-ahora">
+          <button data-action="marcar-cobrada" data-id="${v.id}" data-forma="efectivo">Cobrar · Efectivo</button>
+          <button data-action="marcar-cobrada" data-id="${v.id}" data-forma="tarjeta">Cobrar · Tarjeta</button>
+        </div>` : ''}
         <button class="borrar" data-action="borrar-venta" data-id="${v.id}">Borrar venta</button>
       </div>`;
     });
@@ -605,7 +647,8 @@ const ACCIONES = {
   'extra-tipo': (btn)=>{ estado.extraTipo = btn.dataset.valor; render(); },
   'toggle-envio': ()=>{ estado.envio = !estado.envio; render(); },
   'cobrar': async (btn)=>{ await cobrarVenta(btn.dataset.forma); },
-  'borrar-venta': async (btn)=>{ await borrarVenta(btn.dataset.id); }
+  'borrar-venta': async (btn)=>{ await borrarVenta(btn.dataset.id); },
+  'marcar-cobrada': async (btn)=>{ await marcarCobrada(btn.dataset.id, btn.dataset.forma); }
 };
 
 document.body.addEventListener('click', function(e){
@@ -779,16 +822,35 @@ async function cobrarVenta(formaPago){
     direccion: estado.direccion || ''
   };
 
-  let pendiente = false;
+  let sinSincronizar = false;
   try{
     await guardarVentaRemota(venta);
   }catch(err){
     encolarPendiente(venta);
-    pendiente = true;
+    sinSincronizar = true;
   }
-  ultimaVentaConfirmada = Object.assign({}, venta, {pendiente});
+  ultimaVentaConfirmada = Object.assign({}, venta, {sinSincronizar});
   estado = estadoVacio();
   ir('confirmacion');
+}
+
+async function marcarCobrada(id, formaPago){
+  const {url, anon} = cfgSupabase();
+  if(!url || !anon){
+    alert('Supabase no está configurado todavía.');
+    return;
+  }
+  try{
+    const res = await fetch(url + '/rest/v1/ventas_catas?id=eq.' + id, {
+      method:'PATCH',
+      headers: supaHeaders(anon, {'Prefer':'return=representation'}),
+      body: JSON.stringify({ forma_pago: formaPago })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    renderHistorial();
+  }catch(err){
+    alert('No se pudo marcar como cobrada (sin conexión).');
+  }
 }
 
 async function guardarVentaRemota(venta){
