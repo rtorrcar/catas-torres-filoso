@@ -118,6 +118,7 @@
   .picking-bloque summary::marker{ content:''; }
   .picking-linea{ font-size:18px; font-weight:600; padding:7px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
   .picking-linea:last-child{ border-bottom:none; }
+  .link-discreto{ background:none; border:none; color:var(--acento); font-size:14px; text-decoration:underline; padding:8px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -325,7 +326,20 @@ function calcularTotales(){
 /* ==================== NAVEGACION / RENDER ==================== */
 const app = document.getElementById('app');
 
-function ir(pantalla){ pantallaActual = pantalla; render(); window.scrollTo(0,0); }
+function ir(pantalla){
+  pantallaActual = pantalla;
+  try{ history.pushState({pantalla:pantalla}, '', '#'+pantalla); }catch(e){}
+  render();
+  window.scrollTo(0,0);
+}
+
+// Hace que el boton "atras" del movil navegue entre las pantallas de la
+// app en vez de salir de ella (usa el historial del navegador).
+window.addEventListener('popstate', function(e){
+  pantallaActual = (e.state && e.state.pantalla) || 'inicio';
+  render();
+  window.scrollTo(0,0);
+});
 
 function render(){
   if(pantallaActual==='inicio') return renderInicio();
@@ -564,8 +578,10 @@ async function renderHistorial(){
       <h2 style="font-size:20px;">Ventas</h2>
       <span></span>
     </div>
-    <button class="btn secundario pequeno" data-action="exportar-csv">&#128190; Exportar CSV</button>
     <div id="historial-contenido"><p style="text-align:center;">Cargando...</p></div>
+    <div style="text-align:center; margin:26px 0 10px 0;">
+      <button class="link-discreto" data-action="exportar-csv">&#128190; Exportar CSV</button>
+    </div>
   `;
   const ventas = await obtenerVentas();
   ultimasVentasCargadas = ventas || [];
@@ -656,13 +672,9 @@ function pintarHistorial(ventas){
       ${pendientes.length>0 ? `<div class="caja caja-pendiente"><div class="valor">${euros(pendienteTotal)}</div><div class="etiqueta">Pendiente</div></div>` : ''}
       <div class="caja"><div class="valor">${lista.length}</div><div class="etiqueta">Ventas</div></div>
     </div>`;
-    html += renderizarPicking(lista);
+    html += renderizarPicking(pendientes);
     lista.forEach(v=>{
-      let resumen = '';
-      try{
-        const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
-        resumen = (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(', ');
-      }catch(e){ resumen=''; }
+      const resumen = resumenVenta(v);
       const esPendiente = v.forma_pago==='pendiente';
       html += `<div class="venta-item ${esPendiente ? 'es-pendiente' : ''}">
         <div class="venta-clic" data-action="ver-detalle" data-id="${v.id||''}">
@@ -686,6 +698,18 @@ function pintarHistorial(ventas){
   cont.innerHTML = html;
 }
 
+function resumenVenta(v){
+  let items = [];
+  try{ items = typeof v.items==='string' ? JSON.parse(v.items) : (v.items||[]); }catch(e){ items = []; }
+  if(items.length>0){
+    return items.map(it=>it.nombre+' x'+it.cantidad).join(', ');
+  }
+  try{
+    const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
+    return (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(', ');
+  }catch(e){ return ''; }
+}
+
 function renderizarPicking(lista){
   const acumulado = {};
   const orden = [];
@@ -701,7 +725,7 @@ function renderizarPicking(lista){
   if(orden.length===0) return '';
   const lineas = orden.map(nombre=>`<div class="picking-linea"><span>${escapeHtml(nombre)}</span><span>${acumulado[nombre]}</span></div>`).join('');
   return `<details class="picking-bloque">
-    <summary>&#128230; Para preparar <span style="font-size:13px; color:#7a7a79; font-weight:600;">(toca para ver)</span></summary>
+    <summary>&#128230; Para preparar <span style="font-size:13px; color:#7a7a79; font-weight:600;">(pendientes de pago · toca para ver)</span></summary>
     <div style="margin-top:10px;">${lineas}</div>
   </details>`;
 }
@@ -734,8 +758,6 @@ function renderDetalleVenta(){
   }
   let items = [];
   try{ items = typeof v.items==='string' ? JSON.parse(v.items) : (v.items||[]); }catch(e){ items = []; }
-  let gruposPrecio = [];
-  try{ gruposPrecio = typeof v.productos==='string' ? JSON.parse(v.productos) : (v.productos||[]); }catch(e){ gruposPrecio = []; }
 
   const vinos = items.filter(it=>it.tipo==='vino');
   const otros = items.filter(it=>it.tipo==='otro');
@@ -744,7 +766,6 @@ function renderDetalleVenta(){
   const lineasVino = vinos.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)}</div>`).join('');
   const lineasOtros = otros.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)}</div>`).join('');
   const lineasQueso = quesos.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)} <span style="font-size:14px; color:#7a7a79; font-weight:400;">(${euros(Number(it.precioUnidad||0))}/ud)</span></div>`).join('');
-  const notasPrecio = gruposPrecio.map(g=>`<div class="nota-precio">${escapeHtml(g.nombre||'')}: ${escapeHtml(g.desc||'')} — ${euros(Number(g.coste!=null?g.coste:(g.precio||0)))}</div>`).join('');
 
   const nc = Number(v.num_catas||0);
   const plural = nc===1 ? '' : 's';
@@ -792,7 +813,6 @@ function renderDetalleVenta(){
     <div class="card">
       <div class="detalle-seccion-titulo">Vinos</div>
       ${lineasVino || '<div class="aviso">Sin vinos en este pedido.</div>'}
-      ${notasPrecio}
       ${lineasOtros ? `<div class="detalle-seccion-titulo">Otros productos</div>${lineasOtros}` : ''}
       ${lineasQueso ? `<div class="detalle-seccion-titulo">Quesos</div>${lineasQueso}` : ''}
     </div>
@@ -1247,6 +1267,7 @@ window.addEventListener('online', reintentarPendientes);
 setInterval(reintentarPendientes, 30000);
 
 /* ==================== INICIO ==================== */
+try{ history.replaceState({pantalla:'inicio'}, '', '#inicio'); }catch(e){}
 render();
 reintentarPendientes();
 
