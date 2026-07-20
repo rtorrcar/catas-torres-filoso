@@ -103,6 +103,21 @@
   .gear{ position:fixed; bottom:14px; right:14px; background:#fff; border:2px solid var(--acento); border-radius:50%; width:48px; height:48px; font-size:20px; color:var(--acento); box-shadow:0 1px 6px rgba(0,0,0,0.15); z-index:10; }
   input[type=file]{ display:none; }
   .discreto{ font-size:13px; color:#999; text-align:center; margin-top:10px; }
+  .venta-clic{ cursor:pointer; }
+  .detalle-nombre{ font-size:27px; font-weight:800; line-height:1.15; }
+  .detalle-fecha{ color:#7a7a79; font-size:14px; margin-top:2px; }
+  .detalle-seccion-titulo{ font-size:15px; text-transform:uppercase; letter-spacing:1px; color:var(--acento); margin:18px 0 8px 0; font-weight:700; }
+  .detalle-seccion-titulo:first-child{ margin-top:0; }
+  .item-grande{ font-size:21px; font-weight:700; padding:7px 0; border-bottom:1px dashed #ddd6cf; }
+  .nota-precio{ font-size:13px; color:var(--acento); margin-top:2px; }
+  .linea-catas{ font-size:19px; font-weight:700; margin:4px 0 14px 0; }
+  .linea-forma-pago{ font-size:20px; font-weight:700; }
+  .picking-bloque{ background:#fff; border-radius:16px; padding:14px 16px; margin-bottom:14px; }
+  .picking-bloque summary{ font-size:17px; font-weight:800; color:var(--acento); cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+  .picking-bloque summary::-webkit-details-marker{ display:none; }
+  .picking-bloque summary::marker{ content:''; }
+  .picking-linea{ font-size:18px; font-weight:600; padding:7px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
+  .picking-linea:last-child{ border-bottom:none; }
 </style>
 </head>
 <body>
@@ -156,7 +171,9 @@ function estadoVacio(){
     extraValor:0,
     envio:false,
     notas:'',
-    direccion:''
+    direccion:'',
+    editandoId:null,
+    fechaOriginal:null
   };
 }
 let estado = estadoVacio();
@@ -182,6 +199,29 @@ function comboMasBarato(n, precioUnidad, precio4, precio6){
     }
   }
   return mejor;
+}
+
+function construirItems(){
+  const items = [];
+  PRODUCTOS_VINO.forEach(p=>{
+    const n = estado.cantidades[p.id]||0;
+    if(n>0){
+      items.push({ id:p.id, nombre:p.nombre, cantidad:n, tipo:'vino', precioUnidad: estado.modoDescuento==='sindescuento' ? p.pvp : p.cata });
+    }
+  });
+  OTROS.forEach(p=>{
+    const n = estado.cantidades[p.id]||0;
+    if(n>0){
+      items.push({ id:p.id, nombre:p.nombre, cantidad:n, tipo:'otro', precioUnidad: estado.modoDescuento==='sindescuento' ? p.pvp : p.cata });
+    }
+  });
+  QUESOS.forEach(q=>{
+    const n = estado.cantidades[q.id]||0;
+    if(n>0){
+      items.push({ id:q.id, nombre:q.nombre, cantidad:n, tipo:'queso', precioUnidad: estado.quesoPrecios[q.id]||q.precioDefecto });
+    }
+  });
+  return items;
 }
 
 function descripcionCombo(combo){
@@ -294,6 +334,7 @@ function render(){
   if(pantallaActual==='confirmacion') return renderConfirmacion();
   if(pantallaActual==='historial') return renderHistorial();
   if(pantallaActual==='ajustes') return renderAjustes();
+  if(pantallaActual==='detalle') return renderDetalleVenta();
 }
 
 function renderInicio(){
@@ -364,6 +405,8 @@ function renderRevision(){
       <h2 style="font-size:20px;">Revisar pedido</h2>
       <span></span>
     </div>
+
+    ${estado.editandoId ? '<div class="aviso" style="text-align:center; font-weight:700; font-size:15px; margin-bottom:10px;">&#9998; Editando pedido guardado de '+escapeHtml(estado.nombre||'este cliente')+'</div>' : ''}
 
     <div class="card">
       <div class="campo" style="margin-bottom:0;">
@@ -461,6 +504,8 @@ function renderCobro(){
       <span></span>
     </div>
 
+    ${estado.editandoId ? '<div class="card" style="background:#fff7ec; border:2px solid var(--pendiente);"><strong>&#9998; Editando pedido guardado</strong><div class="aviso" style="margin-top:4px;">Al pulsar un botón de abajo se actualizará esta venta, no se creará una nueva.</div></div>' : ''}
+
     <div class="card">
       <h3 style="margin-bottom:10px;">${estado.nombre || 'Sin nombre'}</h3>
       ${lineasHtml.join('') || '<div class="ticket-linea"><span>Sin productos</span><span>0,00 €</span></div>'}
@@ -491,16 +536,21 @@ function textoFormaPago(forma){
 function renderConfirmacion(){
   const v = ultimaVentaConfirmada;
   const esPendiente = v.forma_pago === 'pendiente';
+  const esEdicion = !!v._editada;
+  let msg = esPendiente ? 'Pedido guardado' : 'Venta guardada';
+  if(esEdicion) msg = esPendiente ? 'Pedido actualizado' : 'Venta actualizada';
+  const accionBoton = esEdicion ? 'ir-historial' : 'ir-inicio';
+  const textoBoton = esEdicion ? 'Volver al historial' : (esPendiente ? 'Tomar el siguiente pedido' : 'Cobrar al siguiente');
   app.innerHTML = `
     <div class="confirmacion ${esPendiente ? 'pendiente' : ''}">
       <div class="check">${esPendiente ? '&#128221;' : '&#10004;'}</div>
-      <div class="msg">${esPendiente ? 'Pedido guardado' : 'Venta guardada'}</div>
+      <div class="msg">${msg}</div>
       <div style="font-size:20px;">${v.nombre || 'Sin nombre'} · ${euros(v.total)} · ${textoFormaPago(v.forma_pago)}</div>
       ${esPendiente ? '<div class="aviso">Recuerda cobrarlo luego desde el historial de ventas.</div>' : ''}
       ${v.sinSincronizar ? '<div class="aviso">Guardado localmente. Se sincronizará cuando haya conexión.</div>' : ''}
       ${v.direccion ? `<div class="card" style="text-align:left; margin-top:20px;"><strong>Dirección de envío guardada:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.direccion)}</div></div>` : ''}
       ${v.notas ? `<div class="card" style="text-align:left;"><strong>Notas guardadas:</strong><div style="white-space:pre-wrap; margin-top:6px;">${escapeHtml(v.notas)}</div></div>` : ''}
-      <button class="btn verde" style="margin-top:20px;" data-action="ir-inicio">${esPendiente ? 'Tomar el siguiente pedido' : 'Cobrar al siguiente'}</button>
+      <button class="btn verde" style="margin-top:20px;" data-action="${accionBoton}">${textoBoton}</button>
     </div>
   `;
 }
@@ -529,7 +579,7 @@ function csvEscape(valor){
 }
 
 function generarCSV(ventas){
-  const cabeceras = ['fecha','nombre','forma_pago','total','subtotal','num_catas','estado_cata','descuento_aplicado','envio','direccion','notas','email','productos','created_at'];
+  const cabeceras = ['fecha','nombre','forma_pago','total','subtotal','num_catas','estado_cata','descuento_aplicado','envio','direccion','notas','email','productos','items','created_at'];
   const filas = [cabeceras.join(';')];
   (ventas||[]).forEach(v=>{
     let productosTexto = '';
@@ -537,10 +587,15 @@ function generarCSV(ventas){
       const prods = typeof v.productos==='string' ? JSON.parse(v.productos) : v.productos;
       productosTexto = (prods||[]).map(p=>p.nombre+' x'+p.cantidad).join(' | ');
     }catch(e){ productosTexto = ''; }
+    let itemsTexto = '';
+    try{
+      const its = typeof v.items==='string' ? JSON.parse(v.items) : v.items;
+      itemsTexto = (its||[]).map(it=>it.nombre+' x'+it.cantidad).join(' | ');
+    }catch(e){ itemsTexto = ''; }
     const fila = [
       v.fecha||'', v.nombre||'', v.forma_pago||'', v.total||0, v.subtotal||0,
       v.num_catas||0, v.estado_cata||'', v.descuento_aplicado||'', v.envio?'si':'no',
-      v.direccion||'', v.notas||'', v.email||'', productosTexto, v.created_at||''
+      v.direccion||'', v.notas||'', v.email||'', productosTexto, itemsTexto, v.created_at||''
     ].map(csvEscape);
     filas.push(fila.join(';'));
   });
@@ -601,6 +656,7 @@ function pintarHistorial(ventas){
       ${pendientes.length>0 ? `<div class="caja caja-pendiente"><div class="valor">${euros(pendienteTotal)}</div><div class="etiqueta">Pendiente</div></div>` : ''}
       <div class="caja"><div class="valor">${lista.length}</div><div class="etiqueta">Ventas</div></div>
     </div>`;
+    html += renderizarPicking(lista);
     lista.forEach(v=>{
       let resumen = '';
       try{
@@ -609,13 +665,15 @@ function pintarHistorial(ventas){
       }catch(e){ resumen=''; }
       const esPendiente = v.forma_pago==='pendiente';
       html += `<div class="venta-item ${esPendiente ? 'es-pendiente' : ''}">
-        <div class="fila1">
-          <span>${v.nombre||'Sin nombre'}</span>
-          <span style="display:flex; align-items:center; gap:8px;">${esPendiente ? '<span class="badge-pendiente">Pendiente de pago</span>' : ''}${euros(Number(v.total||0))}</span>
+        <div class="venta-clic" data-action="ver-detalle" data-id="${v.id||''}">
+          <div class="fila1">
+            <span>${escapeHtml(v.nombre||'Sin nombre')}</span>
+            <span style="display:flex; align-items:center; gap:8px;">${esPendiente ? '<span class="badge-pendiente">Pendiente de pago</span>' : ''}${euros(Number(v.total||0))}</span>
+          </div>
+          <div class="fila2">${textoFormaPago(v.forma_pago)}${v.email? ' · '+v.email:''}${resumen? ' · '+resumen:''}${v.sinSincronizar? ' · sin sincronizar':''}</div>
+          ${v.direccion ? `<div class="fila2" style="white-space:pre-wrap;">&#128230; ${escapeHtml(v.direccion)}</div>` : ''}
+          ${v.notas ? `<div class="fila2" style="white-space:pre-wrap;">&#128221; ${escapeHtml(v.notas)}</div>` : ''}
         </div>
-        <div class="fila2">${textoFormaPago(v.forma_pago)}${v.email? ' · '+v.email:''}${resumen? ' · '+resumen:''}</div>
-        ${v.direccion ? `<div class="fila2" style="white-space:pre-wrap;">&#128230; ${escapeHtml(v.direccion)}</div>` : ''}
-        ${v.notas ? `<div class="fila2" style="white-space:pre-wrap;">&#128221; ${escapeHtml(v.notas)}</div>` : ''}
         ${esPendiente ? `<div class="cobrar-ahora">
           <button data-action="marcar-cobrada" data-id="${v.id}" data-forma="efectivo">Cobrar · Efectivo</button>
           <button data-action="marcar-cobrada" data-id="${v.id}" data-forma="tarjeta">Cobrar · Tarjeta</button>
@@ -628,11 +686,140 @@ function pintarHistorial(ventas){
   cont.innerHTML = html;
 }
 
+function renderizarPicking(lista){
+  const acumulado = {};
+  const orden = [];
+  (lista||[]).forEach(v=>{
+    let items = [];
+    try{ items = typeof v.items==='string' ? JSON.parse(v.items) : (v.items||[]); }catch(e){ items = []; }
+    items.forEach(it=>{
+      if(!it || !it.nombre) return;
+      if(!(it.nombre in acumulado)){ acumulado[it.nombre]=0; orden.push(it.nombre); }
+      acumulado[it.nombre] += Number(it.cantidad||0);
+    });
+  });
+  if(orden.length===0) return '';
+  const lineas = orden.map(nombre=>`<div class="picking-linea"><span>${escapeHtml(nombre)}</span><span>${acumulado[nombre]}</span></div>`).join('');
+  return `<details class="picking-bloque">
+    <summary>&#128230; Para preparar <span style="font-size:13px; color:#7a7a79; font-weight:600;">(toca para ver)</span></summary>
+    <div style="margin-top:10px;">${lineas}</div>
+  </details>`;
+}
+
 function formatearFecha(iso){
   try{
     const d = new Date(iso+'T00:00:00');
     return d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
   }catch(e){ return iso; }
+}
+
+/* ==================== DETALLE DE VENTA ==================== */
+let detalleVentaActual = null;
+function buscarVenta(id){
+  return (ultimasVentasCargadas||[]).find(v=>String(v.id)===String(id));
+}
+
+function renderDetalleVenta(){
+  const v = detalleVentaActual;
+  if(!v){
+    app.innerHTML = `
+      <div class="top-bar">
+        <button class="icono-btn" data-action="ir-historial">&#8592;</button>
+        <h2 style="font-size:20px;">Detalle</h2>
+        <span></span>
+      </div>
+      <p style="text-align:center; color:#999;">No se encontró el pedido. Vuelve al historial.</p>
+    `;
+    return;
+  }
+  let items = [];
+  try{ items = typeof v.items==='string' ? JSON.parse(v.items) : (v.items||[]); }catch(e){ items = []; }
+  let gruposPrecio = [];
+  try{ gruposPrecio = typeof v.productos==='string' ? JSON.parse(v.productos) : (v.productos||[]); }catch(e){ gruposPrecio = []; }
+
+  const vinos = items.filter(it=>it.tipo==='vino');
+  const otros = items.filter(it=>it.tipo==='otro');
+  const quesos = items.filter(it=>it.tipo==='queso');
+
+  const lineasVino = vinos.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)}</div>`).join('');
+  const lineasOtros = otros.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)}</div>`).join('');
+  const lineasQueso = quesos.map(it=>`<div class="item-grande">${it.cantidad} × ${escapeHtml(it.nombre)} <span style="font-size:14px; color:#7a7a79; font-weight:400;">(${euros(Number(it.precioUnidad||0))}/ud)</span></div>`).join('');
+  const notasPrecio = gruposPrecio.map(g=>`<div class="nota-precio">${escapeHtml(g.nombre||'')}: ${escapeHtml(g.desc||'')} — ${euros(Number(g.coste!=null?g.coste:(g.precio||0)))}</div>`).join('');
+
+  const nc = Number(v.num_catas||0);
+  const plural = nc===1 ? '' : 's';
+  let lineaCatas;
+  if(nc===0){
+    lineaCatas = 'Sin catas';
+  } else if(v.estado_cata==='yapagada'){
+    lineaCatas = `${nc} cata${plural} · ya pagada${plural} · 0,00 €`;
+  } else if(v.estado_cata==='mediapagada'){
+    lineaCatas = `${nc} cata${plural} · media pagada · ${euros(Number(v.subtotal_catas||0))}`;
+  } else {
+    lineaCatas = `${nc} cata${plural} × ${euros(Number(v.precio_cata||0))} = ${euros(Number(v.subtotal_catas||0))}`;
+  }
+
+  let textoDescuento = 'Precio cata (sin descuento adicional)';
+  if(v.descuento_aplicado==='sindescuento'){
+    textoDescuento = 'Sin descuento (precio PVP)';
+  } else if(v.descuento_aplicado==='extra'){
+    const base = Number(v.subtotal||0) + Number(v.subtotal_catas||0);
+    let desc = v.extra_tipo==='€' ? Number(v.extra_valor||0) : base*(Number(v.extra_valor||0)/100);
+    desc = clamp0(Math.min(desc, base));
+    textoDescuento = `Descuento extra: ${v.extra_valor||0}${v.extra_tipo==='€'?' €':'%'} (− ${euros(desc)})`;
+  }
+
+  let textoEnvio = 'Sin envío (recogida en bodega)';
+  if(v.envio){
+    const gratis = Number(v.subtotal||0) >= 79;
+    textoEnvio = gratis ? 'Envío a domicilio: gratis' : 'Envío a domicilio: 10,00 €';
+  }
+
+  const esPendiente = v.forma_pago==='pendiente';
+
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="ir-historial">&#8592;</button>
+      <h2 style="font-size:20px;">Detalle del pedido</h2>
+      <span></span>
+    </div>
+
+    <div class="card">
+      <div class="detalle-nombre">${escapeHtml(v.nombre||'Sin nombre')}</div>
+      <div class="detalle-fecha">${formatearFecha(v.fecha)}</div>
+    </div>
+
+    <div class="card">
+      <div class="detalle-seccion-titulo">Vinos</div>
+      ${lineasVino || '<div class="aviso">Sin vinos en este pedido.</div>'}
+      ${notasPrecio}
+      ${lineasOtros ? `<div class="detalle-seccion-titulo">Otros productos</div>${lineasOtros}` : ''}
+      ${lineasQueso ? `<div class="detalle-seccion-titulo">Quesos</div>${lineasQueso}` : ''}
+    </div>
+
+    <div class="card">
+      <div class="detalle-seccion-titulo">Catas</div>
+      <div class="linea-catas">${lineaCatas}</div>
+      <div class="detalle-seccion-titulo">Descuento</div>
+      <div style="font-size:17px;">${textoDescuento}</div>
+      <div class="detalle-seccion-titulo">Envío</div>
+      <div style="font-size:17px;">${textoEnvio}</div>
+      ${v.direccion ? `<div style="white-space:pre-wrap; margin-top:8px; font-size:15px;">&#128230; ${escapeHtml(v.direccion)}</div>` : ''}
+      ${v.notas ? `<div class="detalle-seccion-titulo">Notas</div><div style="white-space:pre-wrap; font-size:17px;">${escapeHtml(v.notas)}</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="linea-forma-pago">${esPendiente ? '<span class="badge-pendiente">Pendiente de pago</span>' : textoFormaPago(v.forma_pago)}</div>
+      <div class="ticket-linea total" style="border:none;"><span>TOTAL</span><span>${euros(Number(v.total||0))}</span></div>
+    </div>
+
+    ${v.id ? `<button class="btn secundario" data-action="editar-venta" data-id="${v.id}">&#9998; Editar pedido</button>` : '<div class="aviso" style="text-align:center;">Este pedido todavía no se ha sincronizado; podrás editarlo en cuanto haya conexión.</div>'}
+    ${esPendiente && v.id ? `<div class="btn-fila">
+      <button class="btn" data-action="marcar-cobrada" data-id="${v.id}" data-forma="efectivo">Cobrar · Efectivo</button>
+      <button class="btn" data-action="marcar-cobrada" data-id="${v.id}" data-forma="tarjeta">Cobrar · Tarjeta</button>
+    </div>` : ''}
+    ${v.id ? `<button class="btn gris" data-action="borrar-venta" data-id="${v.id}">Borrar venta</button>` : ''}
+  `;
 }
 
 /* ==================== AJUSTES ==================== */
@@ -695,8 +882,45 @@ const ACCIONES = {
   'cobrar': async (btn)=>{ await cobrarVenta(btn.dataset.forma); },
   'borrar-venta': async (btn)=>{ await borrarVenta(btn.dataset.id); },
   'marcar-cobrada': async (btn)=>{ await marcarCobrada(btn.dataset.id, btn.dataset.forma); },
-  'exportar-csv': ()=>{ exportarVentasCSV(); }
+  'exportar-csv': ()=>{ exportarVentasCSV(); },
+  'ver-detalle': (btn)=>{
+    const id = btn.dataset.id;
+    if(!id){ alert('Este pedido aún no se ha sincronizado, espera a tener conexión.'); return; }
+    const v = buscarVenta(id);
+    if(!v){ alert('No se encontró el detalle. Vuelve a abrir el historial.'); return; }
+    detalleVentaActual = v;
+    ir('detalle');
+  },
+  'editar-venta': (btn)=>{ cargarVentaParaEditar(btn.dataset.id); }
 };
+
+function cargarVentaParaEditar(id){
+  const v = buscarVenta(id);
+  if(!v){ alert('No se encontró la venta a editar.'); return; }
+  let items = [];
+  try{ items = typeof v.items==='string' ? JSON.parse(v.items) : (v.items||[]); }catch(e){ items = []; }
+  estado = estadoVacio();
+  estado.nombre = v.nombre || '';
+  items.forEach(it=>{
+    if(Object.prototype.hasOwnProperty.call(estado.cantidades, it.id)) estado.cantidades[it.id] = Number(it.cantidad)||0;
+    if(it.tipo==='queso' && Object.prototype.hasOwnProperty.call(estado.quesoPrecios, it.id)){
+      estado.quesoPrecios[it.id] = Number(it.precioUnidad) || estado.quesoPrecios[it.id];
+    }
+  });
+  estado.numCatas = Number(v.num_catas)||0;
+  estado.precioCata = v.precio_cata!=null ? Number(v.precio_cata) : 22.00;
+  estado.estadoCata = v.estado_cata || 'sinpagar';
+  estado.modoDescuento = v.descuento_aplicado || 'cata';
+  estado.extraTipo = v.extra_tipo || '%';
+  estado.extraValor = v.extra_valor!=null ? Number(v.extra_valor) : 0;
+  estado.envio = !!v.envio;
+  estado.notas = v.notas || '';
+  estado.direccion = v.direccion || '';
+  estado.email = v.email || '';
+  estado.editandoId = v.id;
+  estado.fechaOriginal = v.fecha;
+  ir('revision');
+}
 
 document.body.addEventListener('click', function(e){
   const btn = e.target.closest('[data-action]');
@@ -848,18 +1072,25 @@ function supaHeaders(anon, extra){
 async function cobrarVenta(formaPago){
   const t = calcularTotales();
   const productos = []
-    .concat(t.lineasVino.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})))
+    .concat(t.lineasVino.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste, desc:l.desc})))
     .concat(t.lineasOtros.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})))
     .concat(t.lineasQueso.map(l=>({nombre:l.nombre, cantidad:l.cantidad, precio:l.coste})));
+  const items = construirItems();
 
   const hoy = new Date();
+  const editando = !!estado.editandoId;
   const venta = {
-    fecha: hoy.toISOString().slice(0,10),
+    fecha: editando ? (estado.fechaOriginal || hoy.toISOString().slice(0,10)) : hoy.toISOString().slice(0,10),
     nombre: estado.nombre || '',
     productos: JSON.stringify(productos),
+    items: JSON.stringify(items),
     num_catas: estado.numCatas,
     estado_cata: estado.estadoCata,
     descuento_aplicado: estado.modoDescuento,
+    precio_cata: estado.precioCata,
+    subtotal_catas: Number(t.subtotalCatas.toFixed(2)),
+    extra_valor: estado.extraValor || 0,
+    extra_tipo: estado.extraTipo || '%',
     envio: estado.envio,
     subtotal: Number((t.subtotalProductos).toFixed(2)),
     total: Number(t.total.toFixed(2)),
@@ -870,13 +1101,24 @@ async function cobrarVenta(formaPago){
   };
 
   let sinSincronizar = false;
-  try{
-    await guardarVentaRemota(venta);
-  }catch(err){
-    encolarPendiente(venta);
-    sinSincronizar = true;
+  if(editando){
+    const id = estado.editandoId;
+    try{
+      await actualizarVentaRemota(id, venta);
+    }catch(err){
+      encolarPendiente(Object.assign({}, venta, {_accion:'actualizar', _id:id}));
+      sinSincronizar = true;
+    }
+    ultimaVentaConfirmada = Object.assign({id}, venta, {sinSincronizar, _editada:true});
+  } else {
+    try{
+      await guardarVentaRemota(venta);
+    }catch(err){
+      encolarPendiente(Object.assign({}, venta, {_accion:'crear'}));
+      sinSincronizar = true;
+    }
+    ultimaVentaConfirmada = Object.assign({}, venta, {sinSincronizar});
   }
-  ultimaVentaConfirmada = Object.assign({}, venta, {sinSincronizar});
   estado = estadoVacio();
   ir('confirmacion');
 }
@@ -894,7 +1136,7 @@ async function marcarCobrada(id, formaPago){
       body: JSON.stringify({ forma_pago: formaPago })
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
-    renderHistorial();
+    ir('historial');
   }catch(err){
     alert('No se pudo marcar como cobrada (sin conexión).');
   }
@@ -905,6 +1147,18 @@ async function guardarVentaRemota(venta){
   if(!url || !anon) throw new Error('Supabase no configurado');
   const res = await fetch(url + '/rest/v1/ventas_catas', {
     method:'POST',
+    headers: supaHeaders(anon, {'Prefer':'return=representation'}),
+    body: JSON.stringify(venta)
+  });
+  if(!res.ok){ throw new Error('HTTP '+res.status); }
+  return res.json();
+}
+
+async function actualizarVentaRemota(id, venta){
+  const {url, anon} = cfgSupabase();
+  if(!url || !anon) throw new Error('Supabase no configurado');
+  const res = await fetch(url + '/rest/v1/ventas_catas?id=eq.' + id, {
+    method:'PATCH',
     headers: supaHeaders(anon, {'Prefer':'return=representation'}),
     body: JSON.stringify(venta)
   });
@@ -923,19 +1177,30 @@ async function reintentarPendientes(){
   if(cola.length===0) return;
   const restantes = [];
   for(const venta of cola){
-    try{ await guardarVentaRemota(venta); }
+    try{
+      if(venta._accion==='actualizar' && venta._id){
+        const copia = Object.assign({}, venta);
+        delete copia._accion; delete copia._id;
+        await actualizarVentaRemota(venta._id, copia);
+      } else {
+        const copia = Object.assign({}, venta);
+        delete copia._accion;
+        await guardarVentaRemota(copia);
+      }
+    }
     catch(e){ restantes.push(venta); }
   }
   localStorage.setItem('cola_pendientes', JSON.stringify(restantes));
-  if(restantes.length < cola.length && pantallaActual==='historial'){
-    renderHistorial();
+  if(restantes.length < cola.length && (pantallaActual==='historial' || pantallaActual==='detalle')){
+    ir('historial');
   }
 }
 
 async function obtenerVentas(){
   const {url, anon} = cfgSupabase();
+  const cola = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
   if(!url || !anon){
-    return JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
+    return cola.map(v=>Object.assign({}, v, {sinSincronizar:true}));
   }
   try{
     const res = await fetch(url + '/rest/v1/ventas_catas?select=*&order=fecha.desc,id.desc', {
@@ -943,11 +1208,23 @@ async function obtenerVentas(){
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const remotas = await res.json();
-    const pendientes = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
-    return pendientes.concat(remotas);
+    const nuevasLocales = [];
+    cola.forEach(v=>{
+      if(v._accion==='actualizar' && v._id){
+        const idx = remotas.findIndex(r=>String(r.id)===String(v._id));
+        const copia = Object.assign({}, v);
+        delete copia._accion; delete copia._id;
+        const fusion = Object.assign({}, idx>=0?remotas[idx]:{}, copia, {id:v._id, sinSincronizar:true});
+        if(idx>=0) remotas[idx] = fusion; else nuevasLocales.push(fusion);
+      } else {
+        const copia = Object.assign({}, v, {sinSincronizar:true});
+        delete copia._accion;
+        nuevasLocales.push(copia);
+      }
+    });
+    return nuevasLocales.concat(remotas);
   }catch(err){
-    const pendientes = JSON.parse(localStorage.getItem('cola_pendientes')||'[]');
-    return pendientes;
+    return cola.map(v=>Object.assign({}, v, {sinSincronizar:true}));
   }
 }
 
@@ -960,7 +1237,7 @@ async function borrarVenta(id){
       headers: supaHeaders(anon)
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
-    renderHistorial();
+    ir('historial');
   }catch(err){
     alert('No se pudo borrar (sin conexión o Supabase no configurado).');
   }
