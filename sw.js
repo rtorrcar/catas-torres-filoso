@@ -1,4 +1,4 @@
-const CACHE_NAME = 'catas-tf-v1';
+const CACHE_NAME = 'catas-tf-v2';
 const ARCHIVOS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function(event){
@@ -17,14 +17,22 @@ self.addEventListener('activate', function(event){
   self.clients.claim();
 });
 
+// Estrategia "red primero": siempre intenta traer la version mas nueva de
+// internet. Solo usa la copia guardada si no hay conexion. Asi, cada vez
+// que se sube una actualizacion de la app, llega sola al movil la
+// siguiente vez que se abra (no hace falta borrar cache a mano).
 self.addEventListener('fetch', function(event){
   const url = event.request.url;
   if(url.includes('/rest/v1/') || url.includes('api.anthropic.com')){
     return;
   }
   event.respondWith(
-    caches.match(event.request).then(function(cached){
-      return cached || fetch(event.request).catch(function(){ return cached; });
+    fetch(event.request).then(function(res){
+      const copia = res.clone();
+      caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copia); });
+      return res;
+    }).catch(function(){
+      return caches.match(event.request);
     })
   );
 });
