@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="Catas TF">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#f6f6f6;
@@ -138,23 +141,31 @@
   .calc-vino-selector{ display:flex; gap:8px; flex-wrap:wrap; }
   .calc-vino-selector button{ padding:10px 12px; border-radius:12px; border:2px solid var(--acento); background:#fff; color:var(--texto); font-size:14px; font-weight:600; }
   .calc-vino-selector button.activo{ background:var(--acento); color:#fff; }
-  #pdf-calc{ display:none; }
-  @media print{
-    body > *:not(#pdf-calc){ display:none !important; }
-    #pdf-calc{ display:block !important; position:static; padding:20px; }
-  }
-  .pdf-cabecera{ text-align:center; margin-bottom:6px; }
-  .pdf-cabecera .pdf-logo{ font-family:Georgia,'Playfair Display',serif; font-size:30px; letter-spacing:2px; text-transform:uppercase; color:#3c3c3b; }
-  .pdf-cabecera .pdf-sub{ font-style:italic; color:#a68572; font-size:13px; margin-top:2px; }
-  .pdf-titulo{ text-align:center; font-size:20px; margin:22px 0 4px 0; font-family:Georgia,'Playfair Display',serif; color:#3c3c3b; }
-  .pdf-meta{ text-align:center; font-size:13px; color:#666; margin-bottom:16px; }
-  .pdf-tabla{ width:100%; border-collapse:collapse; margin-bottom:24px; }
-  .pdf-tabla th, .pdf-tabla td{ border:1px solid #ccc; padding:9px 10px; font-size:13px; text-align:right; color:#3c3c3b; }
-  .pdf-tabla th:first-child, .pdf-tabla td:first-child{ text-align:left; }
-  .pdf-tabla th{ background:#f1ece6; }
-  .pdf-tabla tr.pdf-fila-principal td{ font-weight:700; }
-  .pdf-contacto{ font-size:12px; color:#444; border-top:1px solid #ccc; padding-top:10px; line-height:1.7; text-align:center; }
-  .pdf-contacto strong{ font-size:14px; }
+  #pdf-doc-container{ position:fixed; left:-99999px; top:0; }
+  .hoja-pdf{ width:297mm; height:210mm; background:#fff; position:relative; overflow:hidden; font-family:'Playfair Display', Georgia, serif; color:#3c3c3b; box-sizing:border-box; }
+  .portada-pdf{ background-size:cover; background-position:center; }
+  .portada-pdf .logo-portada{ display:block; margin:14mm auto 0 auto; height:34mm; }
+  .portada-pdf .pie-portada{ position:absolute; left:14mm; right:14mm; bottom:12mm; background:rgba(255,255,255,0.82); padding:8mm; border-radius:2mm; }
+  .portada-pdf .titulo-marca{ font-size:22pt; letter-spacing:1px; }
+  .portada-pdf .linea-fina{ height:1px; background:#3c3c3b; margin:4mm 0 6mm 0; }
+  .portada-pdf .texto-portada{ font-size:11pt; line-height:1.5; }
+  .tarifa-pdf{ background:#f6f6f6; padding:14mm; }
+  .tarifa-pdf .cabecera-tarifa{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .tarifa-pdf .titulo-tarifa{ font-size:20pt; text-transform:uppercase; letter-spacing:1px; }
+  .tarifa-pdf .preparado-para{ font-size:12pt; font-style:italic; color:#a68572; margin-top:3mm; }
+  .tarifa-pdf .logo-tarifa{ height:22mm; }
+  .tarifa-pdf .fecha-tarifa{ text-align:right; font-size:10pt; margin-top:2mm; }
+  .tarifa-pdf .linea-fina{ height:1px; background:#a68572; margin:4mm 0; }
+  .tarifa-pdf .condiciones-tarifa div{ font-size:10pt; margin-bottom:2mm; }
+  .tarifa-pdf .cuenta-tarifa{ font-size:9pt; color:#666; margin-bottom:6mm; }
+  .tabla-tarifa{ width:100%; border-collapse:collapse; margin-bottom:10mm; }
+  .tabla-tarifa th, .tabla-tarifa td{ border:0.5pt solid #a68572; padding:3mm 4mm; font-size:10pt; text-align:center; }
+  .tabla-tarifa th{ background:#fff; text-transform:uppercase; font-size:9pt; }
+  .tabla-tarifa td:first-child, .tabla-tarifa th:first-child{ text-align:left; }
+  .tabla-tarifa td.destacada, .tabla-tarifa th.destacada{ font-weight:700; }
+  .tarifa-pdf .titulo-contacto{ font-size:12pt; text-transform:uppercase; letter-spacing:1px; }
+  .tarifa-pdf .linea-contacto{ font-size:9.5pt; margin-bottom:1.5mm; }
+  #pdf-vista-previa-cont{ margin-top:16px; }
 </style>
 </head>
 <body>
@@ -189,6 +200,17 @@ const QUESOS = [
 ];
 const TODOS_PRODUCTOS = PRODUCTOS_VINO.concat(OTROS);
 
+/* Nombres comerciales para la tarifa HORECA en PDF. Reutiliza el PVP de
+   PRODUCTOS_VINO (arriba) mediante pvpId, para no duplicar precios. */
+const TARIFA_PDF = [
+  {nombre:'ÁRBOLES', desc:'Blanco y Tinto Joven', pvpId:'ab'},
+  {nombre:'BURBU', desc:'Blanco Pet-Nat', pvpId:'burbu'},
+  {nombre:'JUAN JOSÉ', desc:'Tinto Roble', pvpId:'jjr'},
+  {nombre:'JUAN JOSÉ', desc:'Tinto Tinaja', pvpId:'jjt'},
+  {nombre:'AD PATER', desc:'Blanco Tinaja & Roble', pvpId:'apb'},
+  {nombre:'AD PATER', desc:'Tinto Viña Vieja & Roble', pvpId:'apt'},
+];
+
 /* ==================== CALCULADORA DE DESCUENTOS ====================
    Herramienta independiente: no toca pedidos, cobro, historial, cajas
    ni Supabase. Funciona 100% en local y reutiliza los PVP que ya
@@ -202,7 +224,8 @@ let calc = {
   copasTexto: '7',
   vinoId: PRODUCTOS_VINO[0].id,
   precioFinalTexto: '',
-  precioFinalConIva: true
+  precioFinalConIva: true,
+  pdf: null                  // ajustes de la tarifa en PDF, se rellena al abrir esa pantalla
 };
 
 function parseDecimalEs(s){
@@ -427,6 +450,7 @@ function render(){
   if(pantallaActual==='ajustes') return renderAjustes();
   if(pantallaActual==='detalle') return renderDetalleVenta();
   if(pantallaActual==='calculadora') return renderCalculadora();
+  if(pantallaActual==='pdf-ajustes') return renderPdfAjustes();
 }
 
 function renderInicio(){
@@ -958,7 +982,7 @@ function renderContenidoCalc(){
       <div id="calc-resultados"></div>
       <div class="btn-fila">
         <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
-        <button class="btn secundario" data-action="exportar-pdf-calc">&#128196; Exportar PDF</button>
+        <button class="btn verde" data-action="abrir-ajustes-pdf">&#128196; Exportar PDF</button>
       </div>
     `;
   } else {
@@ -979,10 +1003,7 @@ function renderContenidoCalc(){
         </div>
       </div>
       <div id="calc-resultados"></div>
-      <div class="btn-fila">
-        <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
-        <button class="btn secundario" data-action="exportar-pdf-calc">&#128196; Exportar PDF</button>
-      </div>
+      <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
     `;
   }
   actualizarResultadosCalc();
@@ -1081,75 +1102,295 @@ function copiarTablaCalc(){
   copiarAlPortapapeles(texto);
 }
 
-function exportarPdfCalc(){
-  let cont = document.getElementById('pdf-calc');
-  if(!cont){
-    cont = document.createElement('div');
-    cont.id = 'pdf-calc';
-    document.body.appendChild(cont);
-  }
-  const fecha = new Date().toLocaleDateString('es-ES');
-  const cabecera = `
-    <div class="pdf-cabecera">
-      <div class="pdf-logo">Torres Filoso</div>
-      <div class="pdf-sub">Viña y Bodega · Desde 1921</div>
+/* ==================== EXPORTAR TARIFA EN PDF (html2pdf.js) ====================
+   Genera una tarifa HORECA en PDF (A4 horizontal) con los precios que salen
+   del descuento del Modo 1. No guarda nada en Supabase; todo es local. */
+
+function cargarAjustesPdfGuardados(){
+  return {
+    condiciones: localStorage.getItem('cfg_pdf_condiciones') ||
+      'Transporte NACIONAL INCLUIDO (Pedido mínimo 6 Botellas)\n' +
+      'Pedidos inferiores a 1000€: Pago Al Contado, o 50% adelanto 30 días de pago.\n' +
+      'Pedidos superiores a 1000€: Pago Al Contado o Crédito Documentario a 30 días',
+    cuenta: localStorage.getItem('cfg_pdf_cuenta') || 'ES75 2103 0491 34 0550001722 · Caja Rural'
+  };
+}
+
+function guardarAjustesPdfPersistentes(){
+  if(!calc.pdf) return;
+  localStorage.setItem('cfg_pdf_condiciones', calc.pdf.condiciones);
+  localStorage.setItem('cfg_pdf_cuenta', calc.pdf.cuenta);
+}
+
+function abrirAjustesPdf(){
+  const guardado = cargarAjustesPdfGuardados();
+  const hoy = new Date();
+  const finAno = new Date(hoy.getFullYear(), 11, 31);
+  const aIso = (d)=>{
+    const pad = (n)=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  };
+  calc.pdf = {
+    titulo: 'LISTADO DE PRECIOS HORECA ESPAÑA',
+    cliente: '',
+    fechaTarifa: aIso(hoy),
+    fechaValidez: aIso(finAno),
+    condiciones: guardado.condiciones,
+    cuenta: guardado.cuenta,
+    incluirPortada: true,
+    incluirCopa: false
+  };
+  ir('pdf-ajustes');
+}
+
+function renderPdfAjustes(){
+  const p = calc.pdf;
+  if(!p){ ir('calculadora'); return; }
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="cerrar-ajustes-pdf">&#8592;</button>
+      <h2 style="font-size:20px;">Exportar tarifa en PDF</h2>
+      <span></span>
     </div>
-  `;
-  const pie = `
-    <div class="pdf-contacto">
-      <strong>TORRES FILOSO</strong> · Viña y Bodega · Desde 1921<br>
-      Web: www.torresfiloso.com &nbsp;·&nbsp; Email: hola@torresfiloso.com<br>
-      Teléfono: 967 14 44 26 &nbsp;·&nbsp; Whatsapp: 686 930 760 (Rocío)<br>
-      Calle Nueva 9, Villarrobledo 02600 (Albacete) &nbsp;·&nbsp; @bodegastorresfiloso
+
+    <div class="card">
+      <div class="campo">
+        <label>Título</label>
+        <input type="text" id="pdf-titulo" value="${escapeHtml(p.titulo)}">
+      </div>
+      <div class="campo">
+        <label>Cliente (opcional)</label>
+        <input type="text" id="pdf-cliente" value="${escapeHtml(p.cliente)}" placeholder="Ej. Restaurante El Encinar">
+      </div>
+      <div class="campo" style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label>Fecha de la tarifa</label>
+          <input type="date" id="pdf-fecha-tarifa" value="${p.fechaTarifa}">
+        </div>
+        <div style="flex:1;">
+          <label>Válida hasta</label>
+          <input type="date" id="pdf-fecha-validez" value="${p.fechaValidez}">
+        </div>
+      </div>
+      <div class="campo">
+        <label>Condiciones</label>
+        <textarea id="pdf-condiciones" rows="4">${escapeHtml(p.condiciones)}</textarea>
+      </div>
+      <div class="campo" style="margin-bottom:0;">
+        <label>Número de cuenta</label>
+        <input type="text" id="pdf-cuenta" value="${escapeHtml(p.cuenta)}">
+      </div>
     </div>
+
+    <div class="card">
+      <label style="display:flex; align-items:center; gap:10px; font-weight:600; margin-bottom:16px; font-size:16px;">
+        <input type="checkbox" id="pdf-portada" ${p.incluirPortada?'checked':''} style="width:24px; height:24px;">
+        Incluir portada con foto de botellas
+      </label>
+      <label style="display:flex; align-items:center; gap:10px; font-weight:600; margin-bottom:0; font-size:16px;">
+        <input type="checkbox" id="pdf-copa" ${p.incluirCopa?'checked':''} style="width:24px; height:24px;">
+        Incluir precio por copa
+      </label>
+    </div>
+
+    <div class="btn-fila">
+      <button class="btn secundario" data-action="vista-previa-pdf">&#128065; Vista previa</button>
+      <button class="btn verde" data-action="generar-pdf">&#128196; Generar PDF</button>
+    </div>
+    <div id="pdf-vista-previa-cont"></div>
   `;
-  let cuerpo = '';
-  if(calc.modo==='aplicar'){
-    const pct = parseDecimalEs(calc.pctTexto);
-    const copas = parseDecimalEs(calc.copasTexto);
-    const filas = PRODUCTOS_VINO.map(p=>{
-      const r = calcDesdeDescuento(p.pvp, pct, copas);
-      return `<tr>
-        <td>${p.nombre}</td>
-        <td>${euros(r.pvp)}</td>
-        <td>${euros(r.sinIva)}</td>
-        <td>${euros(r.conIva)}</td>
-        <td>${euros(r.porCopaConIva)}</td>
-      </tr>`;
-    }).join('');
-    cuerpo = `
-      <div class="pdf-titulo">Listado de precios con descuento</div>
-      <div class="pdf-meta">Descuento aplicado: ${numES(isFinite(pct)?pct:0)} % &nbsp;·&nbsp; Fecha: ${fecha}</div>
-      <table class="pdf-tabla">
-        <thead><tr><th>Vino</th><th>PVP</th><th>Precio s/IVA</th><th>Precio c/IVA</th><th>Precio/copa c/IVA</th></tr></thead>
+}
+
+function leerAjustesPdfDesdeFormulario(){
+  if(!calc.pdf) return;
+  const g = (id)=>{ const el = document.getElementById(id); return el ? el.value : undefined; };
+  const titulo = g('pdf-titulo'); if(titulo!==undefined) calc.pdf.titulo = titulo;
+  const cliente = g('pdf-cliente'); if(cliente!==undefined) calc.pdf.cliente = cliente;
+  const fechaTarifa = g('pdf-fecha-tarifa'); if(fechaTarifa) calc.pdf.fechaTarifa = fechaTarifa;
+  const fechaValidez = g('pdf-fecha-validez'); if(fechaValidez) calc.pdf.fechaValidez = fechaValidez;
+  const condiciones = g('pdf-condiciones'); if(condiciones!==undefined) calc.pdf.condiciones = condiciones;
+  const cuenta = g('pdf-cuenta'); if(cuenta!==undefined) calc.pdf.cuenta = cuenta;
+  const portada = document.getElementById('pdf-portada'); if(portada) calc.pdf.incluirPortada = portada.checked;
+  const copa = document.getElementById('pdf-copa'); if(copa) calc.pdf.incluirCopa = copa.checked;
+}
+
+function formatearFechaDMY(iso){
+  if(!iso) return '';
+  const partes = iso.split('-');
+  if(partes.length!==3) return iso;
+  return partes[2] + '/' + partes[1] + '/' + partes[0];
+}
+
+function resaltarCondiciones(texto){
+  const frasesResaltar = ['NACIONAL INCLUIDO', 'Al Contado', '50% adelanto 30 días', 'Crédito Documentario'];
+  return (texto||'').split('\n').map(l=>l.trim()).filter(l=>l.length>0).map(linea=>{
+    let l = escapeHtml(linea);
+    frasesResaltar.forEach(f=>{
+      const esc = escapeHtml(f);
+      l = l.split(esc).join('<strong>'+esc+'</strong>');
+    });
+    if(!l.startsWith('·')) l = '· ' + l;
+    return '<div>'+l+'</div>';
+  }).join('');
+}
+
+function construirHtmlTarifa(){
+  const p = calc.pdf;
+  const pct = parseDecimalEs(calc.pctTexto);
+  const copas = parseDecimalEs(calc.copasTexto);
+
+  const filas = TARIFA_PDF.map(t=>{
+    const prod = PRODUCTOS_VINO.find(x=>x.id===t.pvpId);
+    const r = calcDesdeDescuento(prod.pvp, pct, copas);
+    return `<tr>
+      <td>${escapeHtml(t.nombre)} <span style="font-weight:400;">- ${escapeHtml(t.desc)}</span></td>
+      <td>${euros(r.pvp)}</td>
+      <td class="destacada">${euros(r.sinIva)}</td>
+      <td>${euros(r.conIva)}</td>
+      ${p.incluirCopa ? `<td>${euros(r.porCopaConIva)}</td>` : ''}
+    </tr>`;
+  }).join('');
+
+  const portada = p.incluirPortada ? `
+    <div class="hoja-pdf portada-pdf" style="background-image:url('portada-botellas.jpg');">
+      <img class="logo-portada" src="logo-torres-filoso.png">
+      <div class="pie-portada">
+        <div class="titulo-marca">TORRES FILOSO</div>
+        <div class="linea-fina"></div>
+        <div class="texto-portada">Bodega y viñedo familiar centenarios de 4ª y 6ª Generación en Villarrobledo, Albacete. Vinos honestos ecológicos de viñedo regenerativo, elaborados de forma artesanal en tinajas centenarias. Microproducciones de mínima intervención, mosto flor y fermentaciones espontáneas que reflejan sus raíces más puras.</div>
+      </div>
+    </div>
+  ` : '';
+
+  const tarifa = `
+    <div class="hoja-pdf tarifa-pdf">
+      <div class="cabecera-tarifa">
+        <div>
+          <div class="titulo-tarifa">${escapeHtml(p.titulo)}</div>
+          ${p.cliente ? `<div class="preparado-para">Preparado para: ${escapeHtml(p.cliente)}</div>` : ''}
+        </div>
+        <img class="logo-tarifa" src="logo-torres-filoso.png">
+      </div>
+      <div class="fecha-tarifa">A fecha de ${formatearFechaDMY(p.fechaTarifa)}, Validez hasta ${formatearFechaDMY(p.fechaValidez)}</div>
+      <div class="linea-fina"></div>
+      <div class="condiciones-tarifa">${resaltarCondiciones(p.condiciones)}</div>
+      <div class="cuenta-tarifa">Número de Cuenta: ${escapeHtml(p.cuenta)}</div>
+      <table class="tabla-tarifa">
+        <thead><tr>
+          <th>Precio € por BOTELLA</th>
+          <th>PVP en Bodega €</th>
+          <th class="destacada">Precio FINAL SIN IVA</th>
+          <th>Precio FINAL CON IVA</th>
+          ${p.incluirCopa ? '<th>Precio por copa</th>' : ''}
+        </tr></thead>
         <tbody>${filas}</tbody>
       </table>
-    `;
-  } else {
-    const vino = PRODUCTOS_VINO.find(p=>p.id===calc.vinoId) || PRODUCTOS_VINO[0];
-    const precioFinal = parseDecimalEs(calc.precioFinalTexto);
-    if(!isFinite(precioFinal)){ alert('Escribe primero un precio final para poder exportarlo.'); return; }
-    const r = calcDescuentoDesdeFinal(vino.pvp, precioFinal, calc.precioFinalConIva);
-    if(r.pct < 0){ alert('Ese precio es superior al PVP; no se puede exportar.'); return; }
-    const desc = calcDesdeDescuento(vino.pvp, r.pct, parseDecimalEs(calc.copasTexto));
-    cuerpo = `
-      <div class="pdf-titulo">Presupuesto</div>
-      <div class="pdf-meta">Fecha: ${fecha}</div>
-      <table class="pdf-tabla">
-        <thead><tr><th>Vino</th><th>PVP</th><th>Precio s/IVA</th><th>Precio c/IVA</th><th>Precio/copa c/IVA</th></tr></thead>
-        <tbody><tr class="pdf-fila-principal">
-          <td>${vino.nombre}</td>
-          <td>${euros(desc.pvp)}</td>
-          <td>${euros(desc.sinIva)}</td>
-          <td>${euros(desc.conIva)}</td>
-          <td>${euros(desc.porCopaConIva)}</td>
-        </tr></tbody>
-      </table>
-      <div class="pdf-meta">Descuento equivalente: ${numES(r.pct)} % sobre la base imponible</div>
-    `;
+      <div class="titulo-contacto">CONTACTO</div>
+      <div class="linea-fina"></div>
+      <div class="linea-contacto"><strong>Página Web</strong> — www.torresfiloso.com &nbsp;&nbsp; <strong>Email</strong> — hola@torresfiloso.com &nbsp;&nbsp; <strong>Teléfono</strong> — 967 14 44 26 &nbsp;&nbsp; <strong>Whatsapp</strong> — 686 930 760 - Rocío</div>
+      <div class="linea-contacto"><strong>Dirección</strong> — Calle Nueva 9, Villarrobledo 02600 (Albacete) &nbsp;&nbsp; <strong>RRSS</strong> — @bodegastorresfiloso &nbsp;&nbsp; <strong>Horario</strong> — L-V 10h-14h, S 11h-14h</div>
+    </div>
+  `;
+
+  const paginas = [];
+  if(portada) paginas.push(portada);
+  paginas.push(tarifa);
+  return paginas;
+}
+
+function mostrarVistaPreviaPdf(){
+  leerAjustesPdfDesdeFormulario();
+  const cont = document.getElementById('pdf-vista-previa-cont');
+  if(!cont) return;
+  const paginas = construirHtmlTarifa();
+  const anchoDisponible = Math.min(app.clientWidth || 600, 600);
+  const mmApx = 3.7795; // 1mm en px a 96dpi
+  const anchoHojaPx = 297 * mmApx;
+  const altoHojaPx = 210 * mmApx;
+  const escala = anchoDisponible / anchoHojaPx;
+  cont.innerHTML = paginas.map(html=>`
+    <div style="width:${anchoDisponible}px; height:${Math.round(altoHojaPx*escala)}px; overflow:hidden; border:1px solid #ddd; margin-bottom:14px; border-radius:8px;">
+      <div style="width:${anchoHojaPx}px; height:${altoHojaPx}px; transform:scale(${escala}); transform-origin:top left;">${html}</div>
+    </div>
+  `).join('');
+  cont.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function cargarHtml2Pdf(){
+  return new Promise(function(resolve, reject){
+    if(window.html2pdf){ resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = function(){ resolve(); };
+    s.onerror = function(){ reject(new Error('no se pudo cargar (revisa la conexión a internet)')); };
+    document.head.appendChild(s);
+  });
+}
+
+function esperarFuentesEImagenes(contenedor){
+  const imgs = Array.prototype.slice.call(contenedor.querySelectorAll('img'));
+  const promesasImg = imgs.map(function(img){
+    if(img.complete) return Promise.resolve();
+    return new Promise(function(res){ img.onload = res; img.onerror = res; });
+  });
+  const promesaFuentes = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  return Promise.all([promesaFuentes].concat(promesasImg));
+}
+
+function nombreArchivoPdf(){
+  const p = calc.pdf;
+  const base = p.cliente ? p.cliente : p.titulo;
+  const limpio = base.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  const fecha = (p.fechaTarifa||'').replace(/-/g,'');
+  return 'Tarifa_Torres_Filoso_' + (limpio||'General') + '_' + fecha + '.pdf';
+}
+
+async function generarPdfTarifa(btn){
+  leerAjustesPdfDesdeFormulario();
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Generando…';
+  btn.disabled = true;
+  try{
+    await cargarHtml2Pdf();
+    guardarAjustesPdfPersistentes();
+    let cont = document.getElementById('pdf-doc-container');
+    if(!cont){
+      cont = document.createElement('div');
+      cont.id = 'pdf-doc-container';
+      document.body.appendChild(cont);
+    }
+    cont.innerHTML = construirHtmlTarifa().join('');
+    await esperarFuentesEImagenes(cont);
+    const nombreArchivo = nombreArchivoPdf();
+    const opciones = {
+      margin: 0,
+      filename: nombreArchivo,
+      image: { type:'jpeg', quality:0.95 },
+      html2canvas: { scale:2, useCORS:true },
+      jsPDF: { unit:'mm', format:'a4', orientation:'landscape' },
+      pagebreak: { mode:['css','legacy'] }
+    };
+    const worker = window.html2pdf().set(opciones).from(cont);
+    let compartido = false;
+    if(navigator.share && navigator.canShare){
+      try{
+        const blob = await worker.outputPdf('blob');
+        const archivo = new File([blob], nombreArchivo, {type:'application/pdf'});
+        if(navigator.canShare({files:[archivo]})){
+          await navigator.share({ files:[archivo], title: nombreArchivo });
+          compartido = true;
+        }
+      }catch(errCompartir){ /* si el usuario cancela el share, o falla, hacemos fallback a descarga */ }
+    }
+    if(!compartido){
+      await worker.save();
+    }
+  }catch(err){
+    alert('No se pudo generar el PDF (' + err.message + '). Comprueba tu conexión a internet.');
+  }finally{
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
   }
-  cont.innerHTML = cabecera + cuerpo + pie;
-  window.print();
 }
 
 function copiarAlPortapapeles(texto){
@@ -1258,7 +1499,10 @@ const ACCIONES = {
     renderCalculadora();
   },
   'copiar-calc': ()=>{ copiarTablaCalc(); },
-  'exportar-pdf-calc': ()=>{ exportarPdfCalc(); }
+  'abrir-ajustes-pdf': ()=>{ abrirAjustesPdf(); },
+  'cerrar-ajustes-pdf': ()=>{ calc.pdf = null; ir('calculadora'); },
+  'vista-previa-pdf': ()=>{ mostrarVistaPreviaPdf(); },
+  'generar-pdf': async (btn)=>{ await generarPdfTarifa(btn); }
 };
 
 function cargarVentaParaEditar(id){
@@ -1309,6 +1553,14 @@ document.body.addEventListener('input', function(e){
   if(t.id==='calc-pct'){ calc.pctTexto = t.value; actualizarResultadosCalc(); }
   if(t.id==='calc-copas'){ calc.copasTexto = t.value; actualizarResultadosCalc(); }
   if(t.id==='calc-precio-final'){ calc.precioFinalTexto = t.value; actualizarResultadosCalc(); }
+  if(calc.pdf && t.id==='pdf-titulo') calc.pdf.titulo = t.value;
+  if(calc.pdf && t.id==='pdf-cliente') calc.pdf.cliente = t.value;
+  if(calc.pdf && t.id==='pdf-fecha-tarifa') calc.pdf.fechaTarifa = t.value;
+  if(calc.pdf && t.id==='pdf-fecha-validez') calc.pdf.fechaValidez = t.value;
+  if(calc.pdf && t.id==='pdf-condiciones') calc.pdf.condiciones = t.value;
+  if(calc.pdf && t.id==='pdf-cuenta') calc.pdf.cuenta = t.value;
+  if(calc.pdf && t.id==='pdf-portada') calc.pdf.incluirPortada = t.checked;
+  if(calc.pdf && t.id==='pdf-copa') calc.pdf.incluirCopa = t.checked;
 });
 
 /* ==================== FOTO + IA ==================== */
