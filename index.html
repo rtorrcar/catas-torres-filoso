@@ -119,6 +119,25 @@
   .picking-linea{ font-size:18px; font-weight:600; padding:7px 0; border-bottom:1px dashed #eee; display:flex; justify-content:space-between; }
   .picking-linea:last-child{ border-bottom:none; }
   .link-discreto{ background:none; border:none; color:var(--acento); font-size:14px; text-decoration:underline; padding:8px; cursor:pointer; }
+  .calc-card-vino{ background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .calc-card-vino .nombre-vino{ font-weight:800; font-size:19px; margin-bottom:6px; }
+  .calc-card-vino .fila-calc{ display:flex; justify-content:space-between; font-size:15px; padding:3px 0; color:#7a7a79; }
+  .calc-card-vino .fila-calc.destacada{ font-size:21px; font-weight:800; color:var(--verde); padding-top:6px; }
+  .calc-card-vino .fila-calc.destacada2{ font-size:18px; font-weight:700; color:var(--acento); }
+  .calc-tabla-wrap{ display:none; overflow-x:auto; margin-bottom:14px; }
+  .calc-tabla{ width:100%; border-collapse:collapse; font-size:13px; background:#fff; border-radius:14px; overflow:hidden; }
+  .calc-tabla th, .calc-tabla td{ padding:9px 7px; border-bottom:1px solid #eee; text-align:right; white-space:nowrap; }
+  .calc-tabla th:first-child, .calc-tabla td:first-child{ text-align:left; }
+  .calc-tabla th{ background:var(--acento-suave); color:var(--texto); font-size:12px; text-transform:uppercase; }
+  @media(min-width:700px){
+    .calc-tarjetas{ display:none; }
+    .calc-tabla-wrap{ display:block; }
+  }
+  .calc-resultado-grande{ text-align:center; padding:20px 10px; }
+  .calc-resultado-grande .pct{ font-size:44px; font-weight:800; color:var(--verde); }
+  .calc-vino-selector{ display:flex; gap:8px; flex-wrap:wrap; }
+  .calc-vino-selector button{ padding:10px 12px; border-radius:12px; border:2px solid var(--acento); background:#fff; color:var(--texto); font-size:14px; font-weight:600; }
+  .calc-vino-selector button.activo{ background:var(--acento); color:#fff; }
 </style>
 </head>
 <body>
@@ -152,6 +171,47 @@ const QUESOS = [
   {id:'q_romero', nombre:'Queso al romero',  precioDefecto:7.50},
 ];
 const TODOS_PRODUCTOS = PRODUCTOS_VINO.concat(OTROS);
+
+/* ==================== CALCULADORA DE DESCUENTOS ====================
+   Herramienta independiente: no toca pedidos, cobro, historial, cajas
+   ni Supabase. Funciona 100% en local y reutiliza los PVP que ya
+   tenemos arriba en PRODUCTOS_VINO (mismo objeto que usa el cobro),
+   para no duplicar precios en dos sitios distintos. */
+const IVA_VINO = 0.21;
+
+let calc = {
+  modo: 'aplicar',           // 'aplicar' | 'final'
+  pctTexto: '10',
+  copasTexto: '7',
+  vinoId: PRODUCTOS_VINO[0].id,
+  precioFinalTexto: '',
+  precioFinalConIva: true
+};
+
+function parseDecimalEs(s){
+  if(s===undefined || s===null || s==='') return NaN;
+  return parseFloat(String(s).replace(',', '.').trim());
+}
+function numES(n, dec){
+  dec = dec===undefined ? 2 : dec;
+  return (isFinite(n)?n:0).toLocaleString('es-ES', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+
+function calcDesdeDescuento(pvp, pct, copas){
+  const base = pvp / (1+IVA_VINO);
+  const pctSeguro = isFinite(pct) ? pct : 0;
+  const sinIva = base * (1 - pctSeguro/100);
+  const conIva = sinIva * (1+IVA_VINO);
+  const copasSeguras = (isFinite(copas) && copas>0) ? copas : 7;
+  return { pvp, base, sinIva, conIva, copasSeguras, porCopaConIva: conIva/copasSeguras, porCopaSinIva: sinIva/copasSeguras };
+}
+
+function calcDescuentoDesdeFinal(pvp, precioFinal, esConIva){
+  const base = pvp / (1+IVA_VINO);
+  const precioFinalSinIva = esConIva ? (precioFinal/(1+IVA_VINO)) : precioFinal;
+  const pct = base>0 ? (1 - (precioFinalSinIva/base)) * 100 : 0;
+  return { base, precioFinalSinIva, pct };
+}
 
 /* ==================== ESTADO ==================== */
 function estadoVacio(){
@@ -349,6 +409,7 @@ function render(){
   if(pantallaActual==='historial') return renderHistorial();
   if(pantallaActual==='ajustes') return renderAjustes();
   if(pantallaActual==='detalle') return renderDetalleVenta();
+  if(pantallaActual==='calculadora') return renderCalculadora();
 }
 
 function renderInicio(){
@@ -360,6 +421,7 @@ function renderInicio(){
     <button class="btn" data-action="foto-pedido">&#128247; Foto del pedido</button>
     <button class="btn secundario" data-action="pedido-mano">&#9998; Pedido a mano</button>
     <button class="btn gris" data-action="ir-historial">&#128203; Ver ventas de hoy e historial</button>
+    <button class="btn secundario" data-action="ir-calculadora">&#128176; Calculadora de precios</button>
     <div class="discreto">Configura la clave de API y Supabase en el icono de ajustes (abajo a la derecha)</div>
   `;
 }
@@ -842,6 +904,185 @@ function renderDetalleVenta(){
   `;
 }
 
+/* ==================== CALCULADORA DE PRECIOS (pantalla) ==================== */
+function renderCalculadora(){
+  app.innerHTML = `
+    <div class="top-bar">
+      <button class="icono-btn" data-action="ir-inicio">&#8592;</button>
+      <h2 style="font-size:20px;">Calculadora de precios</h2>
+      <span></span>
+    </div>
+
+    <div class="toggle-grupo" style="margin-bottom:16px;">
+      <button class="${calc.modo==='aplicar'?'activo':''}" data-action="calc-modo" data-valor="aplicar">Aplicar descuento</button>
+      <button class="${calc.modo==='final'?'activo':''}" data-action="calc-modo" data-valor="final">Tengo un precio final</button>
+    </div>
+
+    <div id="calc-contenido"></div>
+  `;
+  renderContenidoCalc();
+}
+
+function renderContenidoCalc(){
+  const cont = document.getElementById('calc-contenido');
+  if(!cont) return;
+  if(calc.modo==='aplicar'){
+    cont.innerHTML = `
+      <div class="card">
+        <div class="campo">
+          <label>Descuento (%)</label>
+          <input type="text" inputmode="decimal" id="calc-pct" value="${escapeHtml(calc.pctTexto)}" placeholder="Ej. 12,5">
+        </div>
+        <div class="campo" style="margin-bottom:0;">
+          <label>Copas por botella</label>
+          <input type="text" inputmode="decimal" id="calc-copas" value="${escapeHtml(calc.copasTexto)}" placeholder="7">
+        </div>
+      </div>
+      <div id="calc-resultados"></div>
+      <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+    `;
+  } else {
+    const vinosBotones = PRODUCTOS_VINO.map(p=>`<button class="${calc.vinoId===p.id?'activo':''}" data-action="calc-elegir-vino" data-id="${p.id}">${p.nombre}</button>`).join('');
+    cont.innerHTML = `
+      <div class="card">
+        <div class="campo" style="margin-bottom:12px;">
+          <label>Vino</label>
+          <div class="calc-vino-selector">${vinosBotones}</div>
+        </div>
+        <div class="campo">
+          <label>Precio final deseado</label>
+          <input type="text" inputmode="decimal" id="calc-precio-final" value="${escapeHtml(calc.precioFinalTexto)}" placeholder="Ej. 15,00">
+        </div>
+        <div class="toggle-grupo" style="margin-bottom:0;">
+          <button class="${calc.precioFinalConIva?'activo':''}" data-action="calc-con-iva" data-valor="1">Este precio es: CON IVA</button>
+          <button class="${!calc.precioFinalConIva?'activo':''}" data-action="calc-con-iva" data-valor="0">Este precio es: SIN IVA</button>
+        </div>
+      </div>
+      <div id="calc-resultados"></div>
+      <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+    `;
+  }
+  actualizarResultadosCalc();
+}
+
+function actualizarResultadosCalc(){
+  const cont = document.getElementById('calc-resultados');
+  if(!cont) return;
+  if(calc.modo==='aplicar'){
+    const pct = parseDecimalEs(calc.pctTexto);
+    const copas = parseDecimalEs(calc.copasTexto);
+    const tarjetas = PRODUCTOS_VINO.map(p=>{
+      const r = calcDesdeDescuento(p.pvp, pct, copas);
+      return `<div class="calc-card-vino">
+        <div class="nombre-vino">${p.nombre}</div>
+        <div class="fila-calc"><span>PVP (con IVA)</span><span>${euros(r.pvp)}</span></div>
+        <div class="fila-calc"><span>Base imponible (sin IVA)</span><span>${euros(r.base)}</span></div>
+        <div class="fila-calc destacada2"><span>Con descuento SIN IVA</span><span>${euros(r.sinIva)}</span></div>
+        <div class="fila-calc destacada"><span>Con descuento CON IVA</span><span>${euros(r.conIva)}</span></div>
+        <div class="fila-calc"><span>Por copa CON IVA (${numES(r.copasSeguras,0)})</span><span>${euros(r.porCopaConIva)}</span></div>
+        <div class="fila-calc"><span>Por copa SIN IVA (${numES(r.copasSeguras,0)})</span><span>${euros(r.porCopaSinIva)}</span></div>
+      </div>`;
+    }).join('');
+    const filasTabla = PRODUCTOS_VINO.map(p=>{
+      const r = calcDesdeDescuento(p.pvp, pct, copas);
+      return `<tr>
+        <td>${p.nombre}</td><td>${euros(r.pvp)}</td><td>${euros(r.base)}</td>
+        <td>${euros(r.sinIva)}</td><td>${euros(r.conIva)}</td>
+        <td>${euros(r.porCopaConIva)}</td><td>${euros(r.porCopaSinIva)}</td>
+      </tr>`;
+    }).join('');
+    cont.innerHTML = `
+      <div class="calc-tarjetas">${tarjetas}</div>
+      <div class="calc-tabla-wrap">
+        <table class="calc-tabla">
+          <thead><tr><th>Vino</th><th>PVP</th><th>Base</th><th>Desc. s/IVA</th><th>Desc. c/IVA</th><th>Copa c/IVA</th><th>Copa s/IVA</th></tr></thead>
+          <tbody>${filasTabla}</tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    const vino = PRODUCTOS_VINO.find(p=>p.id===calc.vinoId) || PRODUCTOS_VINO[0];
+    const precioFinal = parseDecimalEs(calc.precioFinalTexto);
+    if(!calc.precioFinalTexto || !isFinite(precioFinal)){
+      cont.innerHTML = `<div class="card"><div class="aviso" style="font-size:16px;">Escribe un precio final para calcular el descuento.</div></div>`;
+      return;
+    }
+    const r = calcDescuentoDesdeFinal(vino.pvp, precioFinal, calc.precioFinalConIva);
+    if(r.pct < 0){
+      cont.innerHTML = `<div class="card"><div class="aviso" style="font-size:17px; font-weight:700;">&#9888; Este precio es superior al PVP de ${vino.nombre} (${euros(vino.pvp)}).</div></div>`;
+      return;
+    }
+    const desc = calcDesdeDescuento(vino.pvp, r.pct, parseDecimalEs(calc.copasTexto));
+    cont.innerHTML = `
+      <div class="calc-resultado-grande card">
+        <div class="pct">${numES(r.pct)} %</div>
+        <div class="aviso">de descuento sobre la base imponible</div>
+      </div>
+      <div class="calc-card-vino">
+        <div class="nombre-vino">${vino.nombre}</div>
+        <div class="fila-calc"><span>PVP (con IVA)</span><span>${euros(desc.pvp)}</span></div>
+        <div class="fila-calc"><span>Base imponible (sin IVA)</span><span>${euros(desc.base)}</span></div>
+        <div class="fila-calc destacada2"><span>Con descuento SIN IVA</span><span>${euros(desc.sinIva)}</span></div>
+        <div class="fila-calc destacada"><span>Con descuento CON IVA</span><span>${euros(desc.conIva)}</span></div>
+        <div class="fila-calc"><span>Por copa CON IVA (${numES(desc.copasSeguras,0)})</span><span>${euros(desc.porCopaConIva)}</span></div>
+        <div class="fila-calc"><span>Por copa SIN IVA (${numES(desc.copasSeguras,0)})</span><span>${euros(desc.porCopaSinIva)}</span></div>
+      </div>
+      <button class="btn verde" data-action="calc-aplicar-a-todos" data-pct="${r.pct}">Aplicar este descuento a todos los vinos &#8594;</button>
+    `;
+  }
+}
+
+function copiarTablaCalc(){
+  let texto = '';
+  if(calc.modo==='aplicar'){
+    const pct = parseDecimalEs(calc.pctTexto);
+    const copas = parseDecimalEs(calc.copasTexto);
+    texto += 'Torres Filoso · Descuento ' + numES(isFinite(pct)?pct:0) + ' %\n\n';
+    PRODUCTOS_VINO.forEach(p=>{
+      const r = calcDesdeDescuento(p.pvp, pct, copas);
+      texto += p.nombre + '\n';
+      texto += '  PVP: ' + euros(r.pvp) + '\n';
+      texto += '  Precio con descuento: ' + euros(r.conIva) + ' (' + euros(r.sinIva) + ' sin IVA)\n';
+      texto += '  Por copa: ' + euros(r.porCopaConIva) + ' (' + euros(r.porCopaSinIva) + ' sin IVA)\n\n';
+    });
+  } else {
+    const vino = PRODUCTOS_VINO.find(p=>p.id===calc.vinoId) || PRODUCTOS_VINO[0];
+    const precioFinal = parseDecimalEs(calc.precioFinalTexto);
+    if(!isFinite(precioFinal)){ alert('Escribe primero un precio final.'); return; }
+    const r = calcDescuentoDesdeFinal(vino.pvp, precioFinal, calc.precioFinalConIva);
+    texto += 'Torres Filoso · ' + vino.nombre + '\n';
+    texto += '  PVP: ' + euros(vino.pvp) + '\n';
+    texto += '  Descuento: ' + numES(r.pct) + ' %\n';
+    texto += '  Precio final: ' + euros(precioFinal) + (calc.precioFinalConIva?' (con IVA)':' (sin IVA)') + '\n';
+  }
+  copiarAlPortapapeles(texto);
+}
+
+function copiarAlPortapapeles(texto){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(function(){
+      alert('Copiado. Ya puedes pegarlo en WhatsApp o email.');
+    }).catch(function(){ copiarFallback(texto); });
+  } else {
+    copiarFallback(texto);
+  }
+}
+function copiarFallback(texto){
+  const ta = document.createElement('textarea');
+  ta.value = texto;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try{
+    document.execCommand('copy');
+    alert('Copiado. Ya puedes pegarlo en WhatsApp o email.');
+  }catch(e){
+    alert('No se pudo copiar automáticamente. Selecciona el texto manualmente.');
+  }
+  ta.remove();
+}
+
 /* ==================== AJUSTES ==================== */
 function renderAjustes(){
   const apiKey = localStorage.getItem('cfg_api_key') || '';
@@ -911,7 +1152,18 @@ const ACCIONES = {
     detalleVentaActual = v;
     ir('detalle');
   },
-  'editar-venta': (btn)=>{ cargarVentaParaEditar(btn.dataset.id); }
+  'editar-venta': (btn)=>{ cargarVentaParaEditar(btn.dataset.id); },
+  'ir-calculadora': ()=>{ ir('calculadora'); },
+  'calc-modo': (btn)=>{ calc.modo = btn.dataset.valor; renderCalculadora(); },
+  'calc-elegir-vino': (btn)=>{ calc.vinoId = btn.dataset.id; renderCalculadora(); },
+  'calc-con-iva': (btn)=>{ calc.precioFinalConIva = btn.dataset.valor==='1'; renderCalculadora(); },
+  'calc-aplicar-a-todos': (btn)=>{
+    const pct = parseFloat(btn.dataset.pct)||0;
+    calc.modo = 'aplicar';
+    calc.pctTexto = numES(pct);
+    renderCalculadora();
+  },
+  'copiar-calc': ()=>{ copiarTablaCalc(); }
 };
 
 function cargarVentaParaEditar(id){
@@ -959,6 +1211,9 @@ document.body.addEventListener('input', function(e){
   if(t.dataset && t.dataset.action==='queso-precio'){
     estado.quesoPrecios[t.dataset.id] = parseFloat(t.value)||0;
   }
+  if(t.id==='calc-pct'){ calc.pctTexto = t.value; actualizarResultadosCalc(); }
+  if(t.id==='calc-copas'){ calc.copasTexto = t.value; actualizarResultadosCalc(); }
+  if(t.id==='calc-precio-final'){ calc.precioFinalTexto = t.value; actualizarResultadosCalc(); }
 });
 
 /* ==================== FOTO + IA ==================== */
