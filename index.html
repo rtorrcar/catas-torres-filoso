@@ -51,7 +51,7 @@
   .card{ background:#fff; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow: 0 1px 4px rgba(60,60,59,0.08); }
   .campo{ margin-bottom:18px; }
   .campo label{ display:block; font-weight:600; margin-bottom:6px; font-size:16px; }
-  .campo input[type=text], .campo input[type=email], .campo input[type=number], .campo textarea{
+  .campo input[type=text], .campo input[type=email], .campo input[type=number], .campo input[type=password], .campo textarea{
     width:100%; padding:14px; border-radius:10px; border:2px solid #ddd6cf; font-size:18px; background:#fff; color:var(--texto); font-family:inherit;
   }
   .campo textarea{ resize:vertical; min-height:70px; }
@@ -170,7 +170,7 @@
 </head>
 <body>
 <div id="app"></div>
-<button class="gear" data-action="abrir-ajustes" title="Ajustes">&#9881;</button>
+<button class="gear" id="btn-ajustes" data-action="abrir-ajustes" title="Ajustes" style="display:none;">&#9881;</button>
 <input type="file" id="input-foto" accept="image/*" capture="environment">
 <script>
 /* ==================== DATOS ==================== */
@@ -1876,13 +1876,72 @@ async function borrarVenta(id){
 window.addEventListener('online', reintentarPendientes);
 setInterval(reintentarPendientes, 30000);
 
-/* ==================== INICIO ==================== */
-try{ history.replaceState({pantalla:'inicio'}, '', '#inicio'); }catch(e){}
-render();
-reintentarPendientes();
+/* ==================== ACCESO CON CONTRASEÑA ====================
+   Aviso: esto es solo una barrera sencilla para que un visitante
+   casual (o un buscador) no vea los precios y datos internos. No es
+   seguridad real: cualquiera con conocimientos técnicos que mire el
+   código de la página podría ver la contraseña. Suficiente para uso
+   familiar/interno, no para proteger datos sensibles de verdad. */
+const CLAVE_ACCESO = 'catas2026';
 
+function accesoConcedido(){
+  return localStorage.getItem('acceso_catas_ok') === 'si';
+}
+
+function mostrarPantallaAcceso(mensajeError){
+  app.innerHTML = `
+    <div class="top-title">
+      <h1>Torres Filoso</h1>
+      <div class="sub">Cobro de catas</div>
+    </div>
+    <div class="card">
+      <div class="campo" style="margin-bottom:0;">
+        <label>Contraseña</label>
+        <input type="password" id="input-clave-acceso" placeholder="Contraseña" autofocus>
+      </div>
+      ${mensajeError ? '<div class="aviso" style="color:#b33; font-weight:700; margin-top:8px;">'+escapeHtml(mensajeError)+'</div>' : ''}
+    </div>
+    <button class="btn verde" data-action="comprobar-clave-acceso">Entrar</button>
+  `;
+  const input = document.getElementById('input-clave-acceso');
+  if(input){
+    input.focus();
+    input.addEventListener('keydown', function(e){
+      if(e.key==='Enter') comprobarClaveAcceso();
+    });
+  }
+}
+
+function comprobarClaveAcceso(){
+  const input = document.getElementById('input-clave-acceso');
+  const valor = input ? input.value : '';
+  if(valor === CLAVE_ACCESO){
+    localStorage.setItem('acceso_catas_ok', 'si');
+    iniciarApp();
+  } else {
+    mostrarPantallaAcceso('Contraseña incorrecta. Inténtalo de nuevo.');
+  }
+}
+
+ACCIONES['comprobar-clave-acceso'] = function(){ comprobarClaveAcceso(); };
+
+function iniciarApp(){
+  const btnAjustes = document.getElementById('btn-ajustes');
+  if(btnAjustes) btnAjustes.style.display = '';
+  try{ history.replaceState({pantalla:'inicio'}, '', '#inicio'); }catch(e){}
+  render();
+  reintentarPendientes();
+}
+
+/* ==================== INICIO ==================== */
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+
+if(accesoConcedido()){
+  iniciarApp();
+} else {
+  mostrarPantallaAcceso();
 }
 </script>
 </body>
