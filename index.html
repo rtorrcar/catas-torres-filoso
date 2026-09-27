@@ -138,6 +138,23 @@
   .calc-vino-selector{ display:flex; gap:8px; flex-wrap:wrap; }
   .calc-vino-selector button{ padding:10px 12px; border-radius:12px; border:2px solid var(--acento); background:#fff; color:var(--texto); font-size:14px; font-weight:600; }
   .calc-vino-selector button.activo{ background:var(--acento); color:#fff; }
+  #pdf-calc{ display:none; }
+  @media print{
+    body > *:not(#pdf-calc){ display:none !important; }
+    #pdf-calc{ display:block !important; position:static; padding:20px; }
+  }
+  .pdf-cabecera{ text-align:center; margin-bottom:6px; }
+  .pdf-cabecera .pdf-logo{ font-family:Georgia,'Playfair Display',serif; font-size:30px; letter-spacing:2px; text-transform:uppercase; color:#3c3c3b; }
+  .pdf-cabecera .pdf-sub{ font-style:italic; color:#a68572; font-size:13px; margin-top:2px; }
+  .pdf-titulo{ text-align:center; font-size:20px; margin:22px 0 4px 0; font-family:Georgia,'Playfair Display',serif; color:#3c3c3b; }
+  .pdf-meta{ text-align:center; font-size:13px; color:#666; margin-bottom:16px; }
+  .pdf-tabla{ width:100%; border-collapse:collapse; margin-bottom:24px; }
+  .pdf-tabla th, .pdf-tabla td{ border:1px solid #ccc; padding:9px 10px; font-size:13px; text-align:right; color:#3c3c3b; }
+  .pdf-tabla th:first-child, .pdf-tabla td:first-child{ text-align:left; }
+  .pdf-tabla th{ background:#f1ece6; }
+  .pdf-tabla tr.pdf-fila-principal td{ font-weight:700; }
+  .pdf-contacto{ font-size:12px; color:#444; border-top:1px solid #ccc; padding-top:10px; line-height:1.7; text-align:center; }
+  .pdf-contacto strong{ font-size:14px; }
 </style>
 </head>
 <body>
@@ -939,7 +956,10 @@ function renderContenidoCalc(){
         </div>
       </div>
       <div id="calc-resultados"></div>
-      <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+      <div class="btn-fila">
+        <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+        <button class="btn secundario" data-action="exportar-pdf-calc">&#128196; Exportar PDF</button>
+      </div>
     `;
   } else {
     const vinosBotones = PRODUCTOS_VINO.map(p=>`<button class="${calc.vinoId===p.id?'activo':''}" data-action="calc-elegir-vino" data-id="${p.id}">${p.nombre}</button>`).join('');
@@ -959,7 +979,10 @@ function renderContenidoCalc(){
         </div>
       </div>
       <div id="calc-resultados"></div>
-      <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+      <div class="btn-fila">
+        <button class="btn secundario" data-action="copiar-calc">&#128203; Copiar tabla</button>
+        <button class="btn secundario" data-action="exportar-pdf-calc">&#128196; Exportar PDF</button>
+      </div>
     `;
   }
   actualizarResultadosCalc();
@@ -1056,6 +1079,77 @@ function copiarTablaCalc(){
     texto += '  Precio final: ' + euros(precioFinal) + (calc.precioFinalConIva?' (con IVA)':' (sin IVA)') + '\n';
   }
   copiarAlPortapapeles(texto);
+}
+
+function exportarPdfCalc(){
+  let cont = document.getElementById('pdf-calc');
+  if(!cont){
+    cont = document.createElement('div');
+    cont.id = 'pdf-calc';
+    document.body.appendChild(cont);
+  }
+  const fecha = new Date().toLocaleDateString('es-ES');
+  const cabecera = `
+    <div class="pdf-cabecera">
+      <div class="pdf-logo">Torres Filoso</div>
+      <div class="pdf-sub">Viña y Bodega · Desde 1921</div>
+    </div>
+  `;
+  const pie = `
+    <div class="pdf-contacto">
+      <strong>TORRES FILOSO</strong> · Viña y Bodega · Desde 1921<br>
+      Web: www.torresfiloso.com &nbsp;·&nbsp; Email: hola@torresfiloso.com<br>
+      Teléfono: 967 14 44 26 &nbsp;·&nbsp; Whatsapp: 686 930 760 (Rocío)<br>
+      Calle Nueva 9, Villarrobledo 02600 (Albacete) &nbsp;·&nbsp; @bodegastorresfiloso
+    </div>
+  `;
+  let cuerpo = '';
+  if(calc.modo==='aplicar'){
+    const pct = parseDecimalEs(calc.pctTexto);
+    const copas = parseDecimalEs(calc.copasTexto);
+    const filas = PRODUCTOS_VINO.map(p=>{
+      const r = calcDesdeDescuento(p.pvp, pct, copas);
+      return `<tr>
+        <td>${p.nombre}</td>
+        <td>${euros(r.pvp)}</td>
+        <td>${euros(r.sinIva)}</td>
+        <td>${euros(r.conIva)}</td>
+        <td>${euros(r.porCopaConIva)}</td>
+      </tr>`;
+    }).join('');
+    cuerpo = `
+      <div class="pdf-titulo">Listado de precios con descuento</div>
+      <div class="pdf-meta">Descuento aplicado: ${numES(isFinite(pct)?pct:0)} % &nbsp;·&nbsp; Fecha: ${fecha}</div>
+      <table class="pdf-tabla">
+        <thead><tr><th>Vino</th><th>PVP</th><th>Precio s/IVA</th><th>Precio c/IVA</th><th>Precio/copa c/IVA</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    `;
+  } else {
+    const vino = PRODUCTOS_VINO.find(p=>p.id===calc.vinoId) || PRODUCTOS_VINO[0];
+    const precioFinal = parseDecimalEs(calc.precioFinalTexto);
+    if(!isFinite(precioFinal)){ alert('Escribe primero un precio final para poder exportarlo.'); return; }
+    const r = calcDescuentoDesdeFinal(vino.pvp, precioFinal, calc.precioFinalConIva);
+    if(r.pct < 0){ alert('Ese precio es superior al PVP; no se puede exportar.'); return; }
+    const desc = calcDesdeDescuento(vino.pvp, r.pct, parseDecimalEs(calc.copasTexto));
+    cuerpo = `
+      <div class="pdf-titulo">Presupuesto</div>
+      <div class="pdf-meta">Fecha: ${fecha}</div>
+      <table class="pdf-tabla">
+        <thead><tr><th>Vino</th><th>PVP</th><th>Precio s/IVA</th><th>Precio c/IVA</th><th>Precio/copa c/IVA</th></tr></thead>
+        <tbody><tr class="pdf-fila-principal">
+          <td>${vino.nombre}</td>
+          <td>${euros(desc.pvp)}</td>
+          <td>${euros(desc.sinIva)}</td>
+          <td>${euros(desc.conIva)}</td>
+          <td>${euros(desc.porCopaConIva)}</td>
+        </tr></tbody>
+      </table>
+      <div class="pdf-meta">Descuento equivalente: ${numES(r.pct)} % sobre la base imponible</div>
+    `;
+  }
+  cont.innerHTML = cabecera + cuerpo + pie;
+  window.print();
 }
 
 function copiarAlPortapapeles(texto){
@@ -1163,7 +1257,8 @@ const ACCIONES = {
     calc.pctTexto = numES(pct);
     renderCalculadora();
   },
-  'copiar-calc': ()=>{ copiarTablaCalc(); }
+  'copiar-calc': ()=>{ copiarTablaCalc(); },
+  'exportar-pdf-calc': ()=>{ exportarPdfCalc(); }
 };
 
 function cargarVentaParaEditar(id){
