@@ -141,7 +141,7 @@
   .calc-vino-selector{ display:flex; gap:8px; flex-wrap:wrap; }
   .calc-vino-selector button{ padding:10px 12px; border-radius:12px; border:2px solid var(--acento); background:#fff; color:var(--texto); font-size:14px; font-weight:600; }
   .calc-vino-selector button.activo{ background:var(--acento); color:#fff; }
-  #pdf-doc-container{ position:fixed; left:-99999px; top:0; }
+  #pdf-doc-container{ background:#fff; }
   .hoja-pdf{ width:297mm; height:210mm; background:#fff; position:relative; overflow:hidden; font-family:'Playfair Display', Georgia, serif; color:#3c3c3b; box-sizing:border-box; }
   .portada-pdf{ background-size:cover; background-position:center; }
   .portada-pdf .logo-portada{ display:block; margin:14mm auto 0 auto; height:34mm; }
@@ -1350,6 +1350,10 @@ async function generarPdfTarifa(btn){
   const textoOriginal = btn.textContent;
   btn.textContent = 'Generando…';
   btn.disabled = true;
+  mostrarCargando('Generando PDF…');
+  const overflowOriginal = document.documentElement.style.overflow;
+  document.documentElement.style.overflow = 'hidden';
+  window.scrollTo(0,0);
   try{
     await cargarHtml2Pdf();
     guardarAjustesPdfPersistentes();
@@ -1388,6 +1392,10 @@ async function generarPdfTarifa(btn){
   }catch(err){
     alert('No se pudo generar el PDF (' + err.message + '). Comprueba tu conexión a internet.');
   }finally{
+    const cont = document.getElementById('pdf-doc-container');
+    if(cont) cont.innerHTML = '';
+    document.documentElement.style.overflow = overflowOriginal;
+    ocultarCargando();
     btn.textContent = textoOriginal;
     btn.disabled = false;
   }
